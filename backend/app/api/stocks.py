@@ -7,10 +7,13 @@ delegates all real logic to app/services/. This keeps routes easy to read
 and means the underlying logic is testable without spinning up a web server.
 """
 
+import math
+
 from fastapi import APIRouter, HTTPException, Query
 
 from app.services.stock_data import fetch_historical_data, fetch_company_info
 from app.services.data_cleaning import clean_ohlcv, validate_ohlcv
+from app.services.technical_indicators import add_all_indicators
 
 router = APIRouter()
 
@@ -48,6 +51,51 @@ def get_stock_history(
         "warnings": warnings,
         "data": records.to_dict(orient="records"),
     }
+
+
+@router.get("/{ticker}/technical-indicators")
+def get_technical_indicators(
+    ticker: str,
+    period: str = Query(default="1y", description="e.g. 1mo, 6mo, 1y, 5y, max"),
+):
+    """
+    Returns historical data WITH technical indicators added: SMA, EMA, RSI,
+    MACD, Bollinger Bands, ATR, and OBV.
+
+    Note: the first ~26 rows will have NaN/null values for some indicators
+    (e.g. MACD needs 26 days of history to warm up) — this is mathematically
+    expected, not a bug. We convert NaN to None so the JSON response is valid
+    (raw NaN is not valid JSON).
+
+    Example: GET /stocks/AAPL/technical-indicators?period=6mo
+    """
+    try:
+        raw = fetch_historical_data(ticker, period=period, interval="1d")
+        cleaned = clean_ohlcv(raw)
+        with_indicators = add_all_indicators(cleaned)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    records = with_indicators.reset_index().rename(columns={"index": "Date"})
+    records["Date"] = records["Date"].astype(str)
+
+    # Convert to a list of dicts FIRST, then replace NaN with None at the
+    # Python level. This is more reliable than pandas' .where()/.fillna(),
+    # which can silently leave real float NaN in place depending on each
+    # column's dtype — and raw NaN is not valid JSON (only `null` is).
+    raw_records = records.to_dict(orient="records")
+    clean_records = [
+        {k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in row.items()}
+        for row in raw_records
+    ]
+
+    return {
+        "ticker": ticker.upper(),
+        "period": period,
+        "rows": len(clean_records),
+        "data": clean_records,
+    }
+
 
 
 @router.get("/{ticker}/info")
