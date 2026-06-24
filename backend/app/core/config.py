@@ -1,0 +1,40 @@
+"""
+Centralized application configuration.
+
+Why this file exists:
+Instead of scattering os.environ.get("SOME_VAR") calls throughout the codebase,
+we define every configuration value ONCE here, with types and defaults.
+pydantic-settings automatically reads from a `.env` file and validates types
+(e.g. it will error loudly if PORT isn't actually a number, instead of failing
+silently later at runtime).
+
+Every other file in the backend imports `settings` from here rather than
+reading environment variables directly.
+"""
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    # App metadata
+    APP_NAME: str = "Stock Predictor API"
+    ENVIRONMENT: str = "development"  # "development" | "production"
+    DEBUG: bool = True
+
+    # Database (filled in properly in Phase 9)
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/stockdb"
+
+    # Redis (filled in properly in Phase 13)
+    REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Auth (filled in properly in Phase 12)
+    JWT_SECRET_KEY: str = "CHANGE_ME_IN_ENV_FILE"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # Reads from a .env file sitting next to where the app is run from
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+
+# A single shared instance, imported everywhere else in the app
+settings = Settings()

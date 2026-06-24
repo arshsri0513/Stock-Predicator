@@ -1,0 +1,45 @@
+# ── Phase 2: Core web framework ───────────────────────
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+pydantic-settings==2.6.0
+python-dotenv==1.0.1
+
+# ── Phase 3: Data collection & processing ─────────────
+yfinance==0.2.44
+pandas==2.2.3
+numpy==1.26.4
+
+# ── Phase 4: Technical indicators ─────────────────────
+ta==0.11.0
+
+# ── Phase 5: Classical ML ─────────────────────────────
+scikit-learn==1.5.2
+xgboost==2.1.1
+joblib==1.4.2
+
+# ── Phase 6: Deep learning ─────────────────────────────
+tensorflow==2.17.0
+
+# ── Phase 7: Sentiment analysis ───────────────────────
+vaderSentiment==3.3.2
+transformers==4.45.2
+torch==2.4.1
+
+# ── Phase 8-9: Backend + database ─────────────────────
+sqlalchemy==2.0.35
+alembic==1.13.3
+psycopg2-binary==2.9.9
+
+# ── Phase 12: Authentication ──────────────────────────
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.12
+
+# ── Phase 13: Caching, background jobs, alerts ────────
+redis==5.1.1
+celery==5.4.0
+
+# ── Phase 14: Testing ──────────────────────────────────
+pytest==8.3.3
+httpx==0.27.2

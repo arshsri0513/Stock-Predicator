@@ -1,0 +1,42 @@
+# ── Python (backend) ──────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+*.pkl
+*.h5
+*.keras
+*.pt
+
+# ── Environment & secrets ─────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ── Node / Next.js (frontend) ─────────────────────
+node_modules/
+.next/
+out/
+build/
+dist/
+.turbo/
+
+# ── ML artifacts & data (kept out of git, too large/volatile) ─
+backend/app/ml/saved_models/
+*.csv
+*.parquet
+ml-research/notebooks/.ipynb_checkpoints/
+
+# ── OS / editor noise ──────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# ── Docker ─────────────────────────────────────────
+*.pid
