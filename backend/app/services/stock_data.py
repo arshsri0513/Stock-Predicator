@@ -78,6 +78,49 @@ def fetch_recent_data(ticker: str, days: int = 5) -> pd.DataFrame:
     return df
 
 
+def fetch_news(ticker: str, limit: int = 10) -> list[dict]:
+    """
+    Fetch recent news headlines for a ticker via yfinance's built-in news
+    property. This is a free, no-extra-API-key data source -- consistent
+    with our Phase 1 decision to keep development costs at zero -- but a
+    real limitation worth knowing: it's less comprehensive than a dedicated
+    news API (NewsAPI, Alpha Vantage News, etc.) and yfinance's exact
+    response shape has changed across versions in the past.
+
+    We extract defensively (using .get() with fallbacks) rather than
+    assuming a fixed structure, since a malformed or missing field
+    shouldn't crash the whole request -- it should just skip that one
+    article.
+
+    Returns a list of dicts: [{"title": ..., "publisher": ..., "link": ...,
+    "published": ...}, ...]
+    """
+    stock = yf.Ticker(ticker)
+    raw_news = stock.news or []
+
+    articles = []
+    for item in raw_news[:limit]:
+        # yfinance nests article data under a "content" key in newer
+        # versions; older versions had fields at the top level. We check
+        # both so this keeps working regardless of which version is
+        # installed.
+        content = item.get("content", item)
+
+        title = content.get("title")
+        if not title:
+            continue  # skip malformed entries with no headline at all
+
+        articles.append({
+            "title": title,
+            "publisher": (content.get("provider") or {}).get("displayName", "Unknown"),
+            "link": (content.get("canonicalUrl") or {}).get("url", ""),
+            "published": content.get("pubDate", ""),
+        })
+
+    return articles
+
+
+
 def fetch_company_info(ticker: str) -> dict:
     """
     Fetch basic company metadata (name, sector, market cap, etc.).
