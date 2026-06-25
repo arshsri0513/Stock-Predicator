@@ -29,6 +29,24 @@ class TrainResponse(BaseModel):
     model_path: str
 
 
+class TrainDLRequest(BaseModel):
+    ticker: str = Field(..., examples=["AAPL"], description="Stock ticker symbol")
+    model_type: Literal["lstm", "gru", "transformer"] = Field(
+        ..., description="Which deep learning architecture to train"
+    )
+    period: str = Field(default="5y", description="History to train on")
+    window_size: int = Field(default=60, ge=10, le=200, description="Days of context per sequence")
+
+
+class TrainDLResponse(BaseModel):
+    ticker: str
+    model_type: str
+    epochs_run: int
+    sequences_trained_on: int
+    metrics: dict
+    model_path: str
+
+
 class PredictResponse(BaseModel):
     ticker: str
     model_type: str

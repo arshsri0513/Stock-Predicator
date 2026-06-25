@@ -8,9 +8,14 @@ logic delegated to app.ml.dataset and app.ml.train.
 
 from fastapi import APIRouter, HTTPException
 
-from app.schemas.ml_schemas import TrainRequest, TrainResponse, PredictResponse
+from app.schemas.ml_schemas import (
+    TrainRequest, TrainResponse, PredictResponse,
+    TrainDLRequest, TrainDLResponse,
+)
 from app.ml.dataset import build_ml_dataset, split_features_target, chronological_train_test_split
 from app.ml.train import train_model, evaluate_model, save_model, load_model
+from app.ml.sequence_dataset import prepare_sequence_dataset
+from app.ml.train_dl import train_dl_model, evaluate_dl_model, save_dl_model
 
 router = APIRouter()
 
@@ -95,4 +100,53 @@ def predict(ticker: str, model_type: str = "random_forest"):
         model_type=model_type,
         predicted_close=round(float(prediction), 2),
         based_on_date=str(X.index[-1].date()),
+    )
+
+
+@router.post("/train-dl", response_model=TrainDLResponse)
+def train_deep_learning_model(request: TrainDLRequest):
+    """
+    Train a deep learning model (LSTM, GRU, or Transformer) for a given
+    ticker, using a sliding-window sequence approach rather than the flat
+    feature table used by classical models in /models/train.
+
+    Note: this endpoint can take significantly longer than /models/train --
+    potentially 1-5 minutes depending on data size and how many epochs
+    early stopping allows before halting. This is expected for deep
+    learning and is exactly why Phase 13 will move this to a background
+    job queue rather than a synchronous request a user waits on directly.
+
+    Example: POST /models/train-dl
+    {"ticker": "AAPL", "model_type": "lstm", "period": "5y", "window_size": 60}
+    """
+    try:
+        X_train, X_test, y_train, y_test, scaler = prepare_sequence_dataset(
+            request.ticker, period=request.period, window_size=request.window_size
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    if len(X_train) < 100:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Only {len(X_train)} usable training sequences -- too few "
+                f"to train a deep learning model reliably. Try a longer "
+                f"'period' or a smaller 'window_size'."
+            ),
+        )
+
+    model, epochs_run = train_dl_model(
+        request.model_type, X_train, y_train, window_size=request.window_size
+    )
+    metrics = evaluate_dl_model(model, X_test, y_test, scaler)
+    model_path = save_dl_model(model, scaler, request.ticker, request.model_type)
+
+    return TrainDLResponse(
+        ticker=request.ticker.upper(),
+        model_type=request.model_type,
+        epochs_run=epochs_run,
+        sequences_trained_on=len(X_train),
+        metrics=metrics,
+        model_path=model_path,
     )
