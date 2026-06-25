@@ -52,3 +52,11 @@ class PredictResponse(BaseModel):
     model_type: str
     predicted_close: float
     based_on_date: str
+
+
+class EvaluateResponse(BaseModel):
+    ticker: str
+    model_type: str
+    rows_evaluated_on: int
+    metrics: dict
+    evaluated_on_period: str

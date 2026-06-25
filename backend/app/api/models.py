@@ -9,7 +9,7 @@ logic delegated to app.ml.dataset and app.ml.train.
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.ml_schemas import (
-    TrainRequest, TrainResponse, PredictResponse,
+    TrainRequest, TrainResponse, PredictResponse, EvaluateResponse,
     TrainDLRequest, TrainDLResponse,
 )
 from app.ml.dataset import build_ml_dataset, split_features_target, chronological_train_test_split
@@ -100,6 +100,50 @@ def predict(ticker: str, model_type: str = "random_forest"):
         model_type=model_type,
         predicted_close=round(float(prediction), 2),
         based_on_date=str(X.index[-1].date()),
+    )
+
+
+@router.get("/{ticker}/evaluate", response_model=EvaluateResponse)
+def evaluate(ticker: str, model_type: str = "random_forest", period: str = "2y"):
+    """
+    Re-evaluate a previously trained CLASSICAL model (linear_regression,
+    random_forest, xgboost) on a fresh chronological test split, without
+    retraining it.
+
+    Why this is useful separately from /train: training and evaluating are
+    different concerns. A user might want to check "how is this model
+    doing lately?" without paying the cost of retraining, or might want to
+    evaluate the SAME saved model against a different period than it was
+    originally trained on, to see how well it generalizes.
+
+    Note: this re-evaluates against a fresh chronological split of `period`
+    -- it does NOT guarantee the same train/test boundary used during the
+    original training run, so metrics here may differ slightly from the
+    /train response even for the same model and ticker.
+
+    Example: GET /models/AAPL/evaluate?model_type=random_forest&period=2y
+    """
+    try:
+        model = load_model(ticker, model_type)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    try:
+        dataset = build_ml_dataset(ticker, period=period)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    X, y = split_features_target(dataset)
+    _, X_test, _, y_test = chronological_train_test_split(X, y)
+
+    metrics = evaluate_model(model, X_test, y_test)
+
+    return EvaluateResponse(
+        ticker=ticker.upper(),
+        model_type=model_type,
+        rows_evaluated_on=len(X_test),
+        metrics=metrics,
+        evaluated_on_period=period,
     )
 
 

@@ -8,7 +8,8 @@ be added the same way, keeping this file a thin "assembly point" rather
 than where actual logic lives.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.api import stocks, models, news
 
@@ -20,6 +21,29 @@ app = FastAPI(
 app.include_router(stocks.router, prefix="/stocks", tags=["stocks"])
 app.include_router(models.router, prefix="/models", tags=["models"])
 app.include_router(news.router, prefix="/news", tags=["news"])
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """
+    Safety net for any error we didn't explicitly anticipate with a
+    try/except in a route. Without this, an unexpected error (a bug, a
+    library raising something unusual, etc.) would leak a raw Python
+    traceback to the client -- unprofessional, and a minor information
+    leak (file paths, library versions). This catches anything that slips
+    through and returns a clean, consistent JSON error instead.
+
+    Note: this does NOT replace the specific try/except blocks already in
+    each route (e.g. catching ValueError for an invalid ticker) -- those
+    stay because they give much more helpful, specific error messages.
+    This is purely a backstop for the unexpected.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "An unexpected error occurred. Please try again or contact support.",
+        },
+    )
 
 
 @app.get("/health")
@@ -36,5 +60,5 @@ def health_check():
 
 
 # More routers will be added here as we build them:
-# Phase 8: watchlist
+# Phase 9: watchlist (after the database exists to store it)
 # Phase 12: auth
