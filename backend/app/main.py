@@ -9,6 +9,7 @@ than where actual logic lives.
 """
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.api import stocks, models, news
@@ -16,6 +17,25 @@ from app.api import stocks, models, news
 app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.DEBUG,
+)
+
+# CORS (Cross-Origin Resource Sharing): by default, browsers block
+# JavaScript on one origin (localhost:3000, our frontend) from calling an
+# API on a different origin (localhost:8000, our backend) -- different
+# ports count as different origins. Without this middleware, every fetch()
+# call from the Next.js app would be silently blocked by the browser with
+# a CORS error, even though our backend itself works fine when tested
+# directly via /docs or curl.
+#
+# In production (Phase 15), this list will need the real deployed frontend
+# URL added -- "*" or localhost-only is fine for local development, but
+# should never be left wide open in a real production deployment.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(stocks.router, prefix="/stocks", tags=["stocks"])

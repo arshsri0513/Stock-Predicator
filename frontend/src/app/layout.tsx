@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
   title: "Stock Predictor",
@@ -7,8 +8,8 @@ export const metadata: Metadata = {
 };
 
 // This layout wraps EVERY page in the app (App Router convention).
-// Anything shared across all pages — like a navbar — will eventually
-// be added here in Phase 10, once we build the Navbar component.
+// Navbar lives here so it's present on every page without each page
+// needing to import and render it individually.
 export default function RootLayout({
   children,
 }: {
@@ -16,7 +17,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Navbar />
+        {children}
+      </body>
     </html>
   );
 }
