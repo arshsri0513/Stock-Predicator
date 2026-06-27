@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas.ml_schemas import (
     TrainRequest, TrainResponse, PredictResponse, EvaluateResponse,
-    TrainDLRequest, TrainDLResponse,
+    TrainDLRequest, TrainDLResponse, MultiPredictRequest, MultiPredictResult,
 )
 from app.ml.dataset import build_ml_dataset, split_features_target, chronological_train_test_split
 from app.ml.train import train_model, evaluate_model, save_model, load_model
@@ -30,7 +30,8 @@ def train(request: TrainRequest):
     (Linear Regression, Random Forest, XGBoost) train in seconds to low
     minutes on a few years of daily data, so this is acceptable for now.
     Deep learning training (Phase 6) will be slow enough that we'll need
-    a background job queue instead — we'll build that properly in Phase 13.
+    a background job queue instead — a genuine future improvement, not
+    yet built in this project.
 
     Example: POST /models/train
     {"ticker": "AAPL", "model_type": "random_forest", "period": "5y"}
@@ -103,6 +104,84 @@ def predict(ticker: str, model_type: str = "random_forest"):
     )
 
 
+@router.post("/predict-multi", response_model=list[MultiPredictResult])
+def predict_multi(request: MultiPredictRequest):
+    """
+    Predict next-day close for several tickers in one call.
+
+    Design choice: this NEVER fails the whole request because one ticker
+    has a problem (no trained model, invalid symbol, etc.) -- each
+    ticker's result independently carries either a prediction or an error
+    message. A dashboard showing 8 stocks shouldn't go blank because the
+    9th one was never trained; it should show 8 real predictions and one
+    clear "not available" message.
+    """
+    results = []
+    for ticker in request.tickers:
+        try:
+            model = load_model(ticker, request.model_type)
+            dataset = build_ml_dataset(ticker, period="6mo")
+            X, _ = split_features_target(dataset)
+            latest_features = X.iloc[[-1]]
+            prediction = model.predict(latest_features)[0]
+            results.append(MultiPredictResult(
+                ticker=ticker.upper(),
+                predicted_close=round(float(prediction), 2),
+                based_on_date=str(X.index[-1].date()),
+            ))
+        except FileNotFoundError:
+            results.append(MultiPredictResult(
+                ticker=ticker.upper(),
+                error=f"No trained '{request.model_type}' model for this ticker yet.",
+            ))
+        except ValueError as e:
+            results.append(MultiPredictResult(ticker=ticker.upper(), error=str(e)))
+
+    return results
+
+
+@router.post("/{ticker}/retrain", response_model=TrainResponse)
+def retrain(ticker: str, model_type: str = "random_forest", period: str = "5y"):
+    """
+    Explicitly retrain a model that may already exist, using the most
+    recent available data. Functionally this calls the same training
+    pipeline as POST /models/train -- the distinction is purely about
+    INTENT: "train" implies a new model+ticker combination, "retrain"
+    implies refreshing an existing one with newer data -- exactly the
+    kind of operation an admin panel's "refresh model" button or a
+    scheduled job would trigger.
+
+    Saving a model with the same ticker+model_type filename naturally
+    overwrites the previous version on disk -- there's no separate
+    "delete old model" step needed.
+    """
+    try:
+        dataset = build_ml_dataset(ticker, period=period)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    if len(dataset) < 100:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Only {len(dataset)} usable rows -- too little data to retrain reliably.",
+        )
+
+    X, y = split_features_target(dataset)
+    X_train, X_test, y_train, y_test = chronological_train_test_split(X, y)
+
+    model = train_model(model_type, X_train, y_train)
+    metrics = evaluate_model(model, X_test, y_test)
+    model_path = save_model(model, ticker, model_type)
+
+    return TrainResponse(
+        ticker=ticker.upper(),
+        model_type=model_type,
+        rows_trained_on=len(X_train),
+        metrics=metrics,
+        model_path=model_path,
+    )
+
+
 @router.get("/{ticker}/evaluate", response_model=EvaluateResponse)
 def evaluate(ticker: str, model_type: str = "random_forest", period: str = "2y"):
     """
@@ -157,8 +236,8 @@ def train_deep_learning_model(request: TrainDLRequest):
     Note: this endpoint can take significantly longer than /models/train --
     potentially 1-5 minutes depending on data size and how many epochs
     early stopping allows before halting. This is expected for deep
-    learning and is exactly why Phase 13 will move this to a background
-    job queue rather than a synchronous request a user waits on directly.
+    learning -- a background job queue would be the right long-term fix
+    for a slow synchronous endpoint like this, but is not yet built here.
 
     Example: POST /models/train-dl
     {"ticker": "AAPL", "model_type": "lstm", "period": "5y", "window_size": 60}

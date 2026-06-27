@@ -60,3 +60,15 @@ class EvaluateResponse(BaseModel):
     rows_evaluated_on: int
     metrics: dict
     evaluated_on_period: str
+
+
+class MultiPredictRequest(BaseModel):
+    tickers: list[str] = Field(..., min_length=1, max_length=20)
+    model_type: str = "random_forest"
+
+
+class MultiPredictResult(BaseModel):
+    ticker: str
+    predicted_close: float | None = None
+    based_on_date: str | None = None
+    error: str | None = None
