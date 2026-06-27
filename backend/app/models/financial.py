@@ -96,3 +96,30 @@ class Watchlist(Base):
 
     user = relationship("User", back_populates="watchlists")
     stock = relationship("Stock", back_populates="watchlists")
+
+
+class PortfolioHolding(Base):
+    """
+    An actual position a user holds -- distinct from Watchlist, which only
+    tracks INTEREST in a stock, not ownership. A user can watch a stock
+    without owning it, and own shares without it being on their watchlist;
+    keeping these as separate tables keeps each one's meaning unambiguous
+    rather than overloading Watchlist with ownership-specific fields that
+    wouldn't make sense for someone just watching a stock.
+
+    quantity and purchase_price together let us compute real gain/loss
+    against the CURRENT price (fetched live, same as everywhere else in
+    this project) without storing a duplicate, potentially-stale copy of
+    the current price ourselves.
+    """
+    __tablename__ = "portfolio_holdings"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    stock_id = Column(UUID(as_uuid=True), ForeignKey("stocks.id"), nullable=False)
+    quantity = Column(Float, nullable=False)
+    purchase_price = Column(Float, nullable=False)
+    purchased_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", back_populates="portfolio_holdings")
+    stock = relationship("Stock", back_populates="portfolio_holdings")

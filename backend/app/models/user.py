@@ -37,6 +37,7 @@ class User(Base):
     # left behind as orphaned rows pointing at a user that no longer exists.
     watchlists = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")
     predictions = relationship("Prediction", back_populates="user", cascade="all, delete-orphan")
+    portfolio_holdings = relationship("PortfolioHolding", back_populates="user", cascade="all, delete-orphan")
 
 
 class Stock(Base):
@@ -57,3 +58,4 @@ class Stock(Base):
     predictions = relationship("Prediction", back_populates="stock", cascade="all, delete-orphan")
     news = relationship("NewsArticle", back_populates="stock", cascade="all, delete-orphan")
     watchlists = relationship("Watchlist", back_populates="stock", cascade="all, delete-orphan")
+    portfolio_holdings = relationship("PortfolioHolding", back_populates="stock", cascade="all, delete-orphan")
