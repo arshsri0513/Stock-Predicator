@@ -2,17 +2,17 @@
 Application entrypoint.
 
 This file creates the FastAPI app instance and wires up routers (groups of
-related API endpoints). /stocks (Phase 3-4), /models (Phase 5-6), and /news
-(Phase 7) are wired in below. Watchlist (Phase 8) and auth (Phase 12) will
-be added the same way, keeping this file a thin "assembly point" rather
-than where actual logic lives.
+related API endpoints). /stocks (Phase 3-4), /models (Phase 5-6), /news
+(Phase 7), and /auth (Phase 12) are wired in below. Watchlist (Phase 13)
+will be added the same way, keeping this file a thin "assembly point"
+rather than where actual logic lives.
 """
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
-from app.api import stocks, models, news
+from app.api import stocks, models, news, auth
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -41,6 +41,7 @@ app.add_middleware(
 app.include_router(stocks.router, prefix="/stocks", tags=["stocks"])
 app.include_router(models.router, prefix="/models", tags=["models"])
 app.include_router(news.router, prefix="/news", tags=["news"])
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
 
 
 @app.exception_handler(Exception)
@@ -80,5 +81,4 @@ def health_check():
 
 
 # More routers will be added here as we build them:
-# Phase 9: watchlist (after the database exists to store it)
-# Phase 12: auth
+# Phase 13: watchlist
