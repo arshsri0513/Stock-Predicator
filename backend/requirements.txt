@@ -40,6 +40,7 @@ email-validator==2.2.0
 # ── Phase 13: Caching, background jobs, alerts ────────
 redis==5.1.1
 celery==5.4.0
+requests==2.32.3
 
 # ── Phase 14: Testing ──────────────────────────────────
 pytest==8.3.3

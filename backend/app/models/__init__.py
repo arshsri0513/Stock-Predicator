@@ -7,6 +7,9 @@ once its module is actually imported somewhere.
 """
 
 from app.models.user import User, Stock
-from app.models.financial import MLModel, Prediction, NewsArticle, Watchlist, PortfolioHolding
+from app.models.financial import MLModel, Prediction, NewsArticle, Watchlist, PortfolioHolding, PriceAlert
 
-__all__ = ["User", "Stock", "MLModel", "Prediction", "NewsArticle", "Watchlist", "PortfolioHolding"]
+__all__ = [
+    "User", "Stock", "MLModel", "Prediction", "NewsArticle",
+    "Watchlist", "PortfolioHolding", "PriceAlert",
+]

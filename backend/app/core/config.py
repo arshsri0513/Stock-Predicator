@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # Email alerts (Phase 13) -- Gmail SMTP. SMTP_PASSWORD must be a Gmail
+    # "App Password" (16 characters), NOT your regular Gmail password --
+    # Google blocks regular-password SMTP login for security reasons.
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""  # your full Gmail address
+    SMTP_PASSWORD: str = ""  # Gmail App Password, NOT your real password
+
+    # Telegram alerts (Phase 13)
+    TELEGRAM_BOT_TOKEN: str = ""
+
     # Reads from a .env file sitting next to where the app is run from
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

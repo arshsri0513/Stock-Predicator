@@ -123,3 +123,33 @@ class PortfolioHolding(Base):
 
     user = relationship("User", back_populates="portfolio_holdings")
     stock = relationship("Stock", back_populates="portfolio_holdings")
+
+
+class PriceAlert(Base):
+    """
+    A user's request to be notified when a stock crosses a price
+    threshold. `direction` distinguishes "alert me when price goes ABOVE
+    this" from "...BELOW this" -- e.g. someone might want to know when a
+    stock they're watching to buy drops below $X, or when one they own
+    rises above $Y as a sell signal.
+
+    telegram_chat_id is stored per-alert rather than per-user since a
+    single user could plausibly want different alerts delivered to
+    different places (though in practice most will set it once and reuse
+    it) -- and it avoids needing to ask "does this user even have
+    Telegram configured" via a separate lookup.
+    """
+    __tablename__ = "price_alerts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    stock_id = Column(UUID(as_uuid=True), ForeignKey("stocks.id"), nullable=False)
+    threshold_price = Column(Float, nullable=False)
+    direction = Column(String, nullable=False)  # "above" or "below"
+    telegram_chat_id = Column(String, nullable=True)
+    notify_email = Column(String, nullable=True)
+    is_active = Column(String, default="true")  # simple flag, no need for a real boolean migration concern here
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", back_populates="price_alerts")
+    stock = relationship("Stock", back_populates="price_alerts")

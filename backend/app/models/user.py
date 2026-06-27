@@ -38,6 +38,7 @@ class User(Base):
     watchlists = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")
     predictions = relationship("Prediction", back_populates="user", cascade="all, delete-orphan")
     portfolio_holdings = relationship("PortfolioHolding", back_populates="user", cascade="all, delete-orphan")
+    price_alerts = relationship("PriceAlert", back_populates="user", cascade="all, delete-orphan")
 
 
 class Stock(Base):
@@ -59,3 +60,4 @@ class Stock(Base):
     news = relationship("NewsArticle", back_populates="stock", cascade="all, delete-orphan")
     watchlists = relationship("Watchlist", back_populates="stock", cascade="all, delete-orphan")
     portfolio_holdings = relationship("PortfolioHolding", back_populates="stock", cascade="all, delete-orphan")
+    price_alerts = relationship("PriceAlert", back_populates="stock", cascade="all, delete-orphan")
