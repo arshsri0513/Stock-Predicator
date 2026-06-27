@@ -12,6 +12,9 @@ import type { StockHistoryResponse, StockInfo, PredictResponse } from "@/lib/typ
 import MetricCard from "@/components/MetricCard";
 import PredictionCard from "@/components/PredictionCard";
 import PriceChart from "@/components/PriceChart";
+import CandlestickChart from "@/components/CandlestickChart";
+import VolumeChart from "@/components/VolumeChart";
+import PredictionChart from "@/components/PredictionChart";
 
 /**
  * Dashboard page -- the main per-stock overview. Reads `ticker` from the
@@ -37,6 +40,7 @@ export default function DashboardPage() {
   const [predictionError, setPredictionError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [chartView, setChartView] = useState<"line" | "candlestick">("line");
 
   useEffect(() => {
     if (!ticker) return;
@@ -108,7 +112,24 @@ export default function DashboardPage() {
         {historyError ? (
           <ErrorBanner message={historyError} />
         ) : history ? (
-          <PriceChart data={history.data} />
+          <>
+            <div className="mb-2 flex justify-end gap-2">
+              <ToggleButton active={chartView === "line"} onClick={() => setChartView("line")}>
+                Line
+              </ToggleButton>
+              <ToggleButton active={chartView === "candlestick"} onClick={() => setChartView("candlestick")}>
+                Candlestick
+              </ToggleButton>
+            </div>
+            {chartView === "line" ? (
+              <PriceChart data={history.data} />
+            ) : (
+              <CandlestickChart data={history.data} />
+            )}
+            <div className="mt-3">
+              <VolumeChart data={history.data} />
+            </div>
+          </>
         ) : (
           <ChartSkeleton />
         )}
@@ -147,7 +168,14 @@ export default function DashboardPage() {
             for {ticker} first.
           </div>
         ) : prediction ? (
-          <PredictionCard prediction={prediction} currentPrice={latestRow?.Close} />
+          <>
+            <PredictionCard prediction={prediction} currentPrice={latestRow?.Close} />
+            {history && (
+              <div className="mt-3">
+                <PredictionChart history={history.data} prediction={prediction} />
+              </div>
+            )}
+          </>
         ) : loading ? (
           <CardSkeleton />
         ) : null}
@@ -164,6 +192,30 @@ function ErrorBanner({ message }: { message: string }) {
     >
       {message}
     </div>
+  );
+}
+
+function ToggleButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="rounded px-3 py-1 text-xs font-medium transition-colors"
+      style={{
+        backgroundColor: active ? "var(--bg-elevated)" : "transparent",
+        color: active ? "var(--text-primary)" : "var(--text-secondary)",
+        border: "1px solid var(--border-subtle)",
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
