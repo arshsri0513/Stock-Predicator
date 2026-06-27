@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
-from app.api import stocks, models, news, auth, watchlist, market, portfolio, alerts
+from app.api import stocks, models, news, auth, watchlist, market, portfolio, alerts, admin
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -46,6 +46,7 @@ app.include_router(watchlist.router, prefix="/watchlist", tags=["watchlist"])
 app.include_router(market.router, prefix="/market/movers", tags=["market"])
 app.include_router(portfolio.router, prefix="/portfolio", tags=["portfolio"])
 app.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
 
 
 @app.exception_handler(Exception)

@@ -98,6 +98,26 @@ def get_current_user(
     return user
 
 
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """
+    FastAPI dependency that builds on get_current_user, adding an
+    additional check: the authenticated user must have is_admin=True.
+
+    This is a SEPARATE dependency rather than a flag/parameter on
+    get_current_user, so that admin-only routes can simply write
+    Depends(require_admin) and get both checks (authenticated AND admin)
+    in one dependency, while non-admin routes keep using
+    Depends(get_current_user) unchanged -- no risk of accidentally
+    forgetting to check the admin flag in a route that needs it.
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="This action requires administrator privileges.",
+        )
+    return current_user
+
+
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     """

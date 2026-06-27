@@ -6,8 +6,10 @@ Same thin-route pattern as app/api/stocks.py — HTTP concerns only, all real
 logic delegated to app.ml.dataset and app.ml.train.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 
+from app.core.database import get_db
 from app.schemas.ml_schemas import (
     TrainRequest, TrainResponse, PredictResponse, EvaluateResponse,
     TrainDLRequest, TrainDLResponse, MultiPredictRequest, MultiPredictResult,
@@ -16,12 +18,13 @@ from app.ml.dataset import build_ml_dataset, split_features_target, chronologica
 from app.ml.train import train_model, evaluate_model, save_model, load_model
 from app.ml.sequence_dataset import prepare_sequence_dataset
 from app.ml.train_dl import train_dl_model, evaluate_dl_model, save_dl_model
+from app.services.model_registry import record_trained_model
 
 router = APIRouter()
 
 
 @router.post("/train", response_model=TrainResponse)
-def train(request: TrainRequest):
+def train(request: TrainRequest, db: Session = Depends(get_db)):
     """
     Train a model for a given ticker and save it to disk.
 
@@ -59,6 +62,7 @@ def train(request: TrainRequest):
     model = train_model(request.model_type, X_train, y_train)
     metrics = evaluate_model(model, X_test, y_test)
     model_path = save_model(model, request.ticker, request.model_type)
+    record_trained_model(db, request.ticker, request.model_type, model_path, metrics["r2_score"])
 
     return TrainResponse(
         ticker=request.ticker.upper(),
@@ -141,7 +145,7 @@ def predict_multi(request: MultiPredictRequest):
 
 
 @router.post("/{ticker}/retrain", response_model=TrainResponse)
-def retrain(ticker: str, model_type: str = "random_forest", period: str = "5y"):
+def retrain(ticker: str, model_type: str = "random_forest", period: str = "5y", db: Session = Depends(get_db)):
     """
     Explicitly retrain a model that may already exist, using the most
     recent available data. Functionally this calls the same training
@@ -172,6 +176,7 @@ def retrain(ticker: str, model_type: str = "random_forest", period: str = "5y"):
     model = train_model(model_type, X_train, y_train)
     metrics = evaluate_model(model, X_test, y_test)
     model_path = save_model(model, ticker, model_type)
+    record_trained_model(db, ticker, model_type, model_path, metrics["r2_score"])
 
     return TrainResponse(
         ticker=ticker.upper(),

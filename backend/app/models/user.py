@@ -11,7 +11,7 @@ other and depend on these two existing first (via foreign keys).
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, DateTime
+from sqlalchemy import Column, String, DateTime, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -23,12 +23,19 @@ class User(Base):
     A registered user of the application. Password hashing (Phase 12) means
     we NEVER store plain-text passwords -- hashed_password holds a one-way
     hash, not the actual password.
+
+    is_admin (Phase 13) gates access to admin-only endpoints (model
+    retraining oversight, viewing all users, etc.) -- a simple boolean
+    flag rather than a full roles/permissions system, which would be
+    over-engineering for a project with exactly one elevated permission
+    level so far.
     """
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String, unique=True, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     # One user can have many watchlist entries and many predictions.
