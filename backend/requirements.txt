@@ -42,6 +42,10 @@ redis==5.1.1
 celery==5.4.0
 requests==2.32.3
 
+# ── Phase 15: Deployment, rate limiting ───────────────
+slowapi==0.1.9
+gunicorn==23.0.0
+
 # ── Phase 14: Testing ──────────────────────────────────
 pytest==8.3.3
 httpx==0.27.2
