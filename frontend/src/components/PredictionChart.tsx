@@ -68,8 +68,8 @@ export default function PredictionChart({ history, prediction }: PredictionChart
               fontSize: 12,
             }}
             labelStyle={{ color: "var(--text-secondary)" }}
-            formatter={(value: number, name: string) => [
-              value != null ? `$${value.toFixed(2)}` : "—",
+            formatter={(value, name) => [
+              typeof value === "number" ? `$${value.toFixed(2)}` : "—",
               name === "actual" ? "Actual" : "Predicted",
             ]}
           />

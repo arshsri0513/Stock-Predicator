@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { Suspense, useState, FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { trainModel, getPrediction, ApiError } from "@/lib/api";
 import type { ClassicalModelType, TrainResponse, PredictResponse } from "@/lib/types";
@@ -18,6 +18,10 @@ import PredictionCard from "@/components/PredictionCard";
  * the background job pattern Phase 13 introduces; until then, scoping
  * this page to fast classical models keeps the experience honest about
  * what it can do quickly.
+ *
+ * SUSPENSE WRAPPER (Phase 15): see dashboard/page.tsx for the full
+ * explanation -- useSearchParams() needs <Suspense> for Next.js's
+ * production build to prerender this page successfully.
  */
 
 const MODEL_OPTIONS: { value: ClassicalModelType; label: string }[] = [
@@ -29,6 +33,14 @@ const MODEL_OPTIONS: { value: ClassicalModelType; label: string }[] = [
 const PERIOD_OPTIONS = ["1y", "2y", "5y"];
 
 export default function PredictPage() {
+  return (
+    <Suspense fallback={null}>
+      <PredictContent />
+    </Suspense>
+  );
+}
+
+function PredictContent() {
   const searchParams = useSearchParams();
   const initialTicker = searchParams.get("ticker")?.toUpperCase() || "";
 

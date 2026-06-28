@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getTechnicalIndicators, ApiError } from "@/lib/api";
 import type { TechnicalIndicatorsResponse } from "@/lib/types";
@@ -11,8 +11,19 @@ import IndicatorChart from "@/components/IndicatorChart";
  * simple price line. Shows price with Bollinger Bands overlaid, plus RSI
  * and MACD as separate panels below, mirroring how real trading platforms
  * stack indicator panels under the main price chart.
+ *
+ * SUSPENSE WRAPPER (Phase 15): see dashboard/page.tsx for the full
+ * explanation.
  */
 export default function ChartsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ChartsContent />
+    </Suspense>
+  );
+}
+
+function ChartsContent() {
   const searchParams = useSearchParams();
   const initialTicker = searchParams.get("ticker")?.toUpperCase() || "";
 

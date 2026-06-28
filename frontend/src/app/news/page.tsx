@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getNews, ApiError } from "@/lib/api";
 import type { NewsResponse } from "@/lib/types";
@@ -11,8 +11,19 @@ import type { NewsResponse } from "@/lib/types";
  * picking one as "the" sentiment -- Phase 7's own testing showed they
  * frequently disagree, and hiding that disagreement would misrepresent
  * how reliable either signal really is.
+ *
+ * SUSPENSE WRAPPER (Phase 15): see dashboard/page.tsx for the full
+ * explanation.
  */
 export default function NewsPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewsContent />
+    </Suspense>
+  );
+}
+
+function NewsContent() {
   const searchParams = useSearchParams();
   const initialTicker = searchParams.get("ticker")?.toUpperCase() || "";
 

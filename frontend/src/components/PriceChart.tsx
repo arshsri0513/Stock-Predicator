@@ -66,7 +66,10 @@ export default function PriceChart({ data }: PriceChartProps) {
               fontSize: 12,
             }}
             labelStyle={{ color: "var(--text-secondary)" }}
-            formatter={(value: number) => [`$${value.toFixed(2)}`, "Close"]}
+            formatter={(value) => [
+              typeof value === "number" ? `$${value.toFixed(2)}` : "—",
+              "Close",
+            ]}
           />
           <Area
             type="monotone"

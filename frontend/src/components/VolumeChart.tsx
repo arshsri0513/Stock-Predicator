@@ -54,7 +54,10 @@ export default function VolumeChart({ data }: VolumeChartProps) {
               fontSize: 12,
             }}
             labelStyle={{ color: "var(--text-secondary)" }}
-            formatter={(value: number) => [value.toLocaleString(), "Volume"]}
+            formatter={(value) => [
+              typeof value === "number" ? value.toLocaleString() : "—",
+              "Volume",
+            ]}
           />
           <Bar dataKey="Volume" isAnimationActive={false}>
             {data.map((row, i) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   getStockHistory,
@@ -26,8 +26,25 @@ import PredictionChart from "@/components/PredictionChart";
  * ticker), the price chart and info should still render. We track loading
  * and error state PER section rather than one global flag, so a failure
  * in one area doesn't blank out the whole page.
+ *
+ * SUSPENSE WRAPPER (Phase 15): useSearchParams() requires the actual
+ * browser URL to read from, which doesn't exist yet during Next.js's
+ * production build-time static prerendering step. Wrapping the part that
+ * calls useSearchParams() in <Suspense> tells Next.js "this part needs
+ * the real request, render it on the client instead of trying to
+ * pre-render it at build time" -- this is a hard requirement enforced by
+ * `next build`, not something the dev server checks, which is exactly why
+ * this didn't surface until our first real production build in CI.
  */
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
   const searchParams = useSearchParams();
   const ticker = searchParams.get("ticker")?.toUpperCase() || "";
 
@@ -234,5 +251,22 @@ function CardSkeleton() {
       className="h-32 animate-pulse rounded-lg border"
       style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}
     />
+  );
+}
+
+function DashboardSkeleton() {
+  // Shown briefly while Suspense waits for the real browser URL to be
+  // available -- in practice this resolves almost instantly on a real
+  // page load; this fallback mostly matters for the build-time
+  // prerendering pass, which is what motivated this fix in the first place.
+  return (
+    <main className="mx-auto max-w-7xl px-6 py-8">
+      <ChartSkeleton />
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+    </main>
   );
 }
