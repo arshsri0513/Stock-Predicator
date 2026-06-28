@@ -3,7 +3,7 @@ Request/response schemas for watchlist endpoints.
 """
 
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class WatchlistAddRequest(BaseModel):
@@ -11,9 +11,8 @@ class WatchlistAddRequest(BaseModel):
 
 
 class WatchlistItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     ticker: str
     added_at: datetime
-
-    class Config:
-        from_attributes = True

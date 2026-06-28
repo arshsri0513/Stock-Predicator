@@ -2,7 +2,7 @@
 Request/response schemas for authentication endpoints.
 """
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
 class SignupRequest(BaseModel):
@@ -21,8 +21,7 @@ class TokenResponse(BaseModel):
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)  # lets this schema build directly from a SQLAlchemy User object
+
     id: str
     email: str
-
-    class Config:
-        from_attributes = True  # lets this schema build directly from a SQLAlchemy User object

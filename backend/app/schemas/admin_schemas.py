@@ -3,17 +3,16 @@ Request/response schemas for admin-only endpoints.
 """
 
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class AdminUserView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     email: str
     is_admin: bool
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class AdminModelView(BaseModel):
