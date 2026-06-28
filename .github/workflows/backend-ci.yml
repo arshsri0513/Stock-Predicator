@@ -1,0 +1,70 @@
+name: Backend CI
+
+# Runs on every push and pull request targeting main -- this is the
+# automated "did I break anything" check Phase 14's test suite was built
+# to support. Before this workflow existed, running pytest was something
+# a person had to remember to do manually; now it happens automatically,
+# every time, with no chance of forgetting.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Spin up a real, throwaway Postgres instance for this CI run only --
+    # test_auth_api.py needs a real database to create/query users
+    # against. This container exists only for the lifetime of this job;
+    # GitHub Actions tears it down automatically when the job finishes.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: stockdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Cache pip downloads between runs -- our dependency list includes
+      # TensorFlow and PyTorch, which are large; without caching, every
+      # single CI run would re-download hundreds of MB from scratch.
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: pip install -r requirements.txt
+
+      - name: Create database tables
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/stockdb
+        run: python create_tables.py
+
+      - name: Run tests
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/stockdb
+          JWT_SECRET_KEY: ci-test-secret-key-not-used-in-production
+        run: pytest -v
