@@ -6,10 +6,11 @@ Same thin-route pattern as app/api/stocks.py — HTTP concerns only, all real
 logic delegated to app.ml.dataset and app.ml.train.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.schemas.ml_schemas import (
     TrainRequest, TrainResponse, PredictResponse, EvaluateResponse,
     TrainDLRequest, TrainDLResponse, MultiPredictRequest, MultiPredictResult,
@@ -24,9 +25,15 @@ router = APIRouter()
 
 
 @router.post("/train", response_model=TrainResponse)
-def train(request: TrainRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/hour")
+def train(train_request: TrainRequest, request: Request, db: Session = Depends(get_db)):
     """
     Train a model for a given ticker and save it to disk.
+
+    Rate limited to 10 requests/hour per IP (Phase 15) -- training is
+    genuinely expensive (real data fetching, real model fitting), so this
+    protects against a misbehaving client or accidental retry loop from
+    monopolizing server resources that other users need too.
 
     This is intentionally a SYNCHRONOUS, ON-DEMAND endpoint for now — the
     person clicks "train" and waits for it to finish. Classical ML models
@@ -41,7 +48,7 @@ def train(request: TrainRequest, db: Session = Depends(get_db)):
     """
     try:
         dataset = build_ml_dataset(
-            request.ticker, period=request.period, horizon=request.horizon
+            train_request.ticker, period=train_request.period, horizon=train_request.horizon
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -59,14 +66,14 @@ def train(request: TrainRequest, db: Session = Depends(get_db)):
     X, y = split_features_target(dataset)
     X_train, X_test, y_train, y_test = chronological_train_test_split(X, y)
 
-    model = train_model(request.model_type, X_train, y_train)
+    model = train_model(train_request.model_type, X_train, y_train)
     metrics = evaluate_model(model, X_test, y_test)
-    model_path = save_model(model, request.ticker, request.model_type)
-    record_trained_model(db, request.ticker, request.model_type, model_path, metrics["r2_score"])
+    model_path = save_model(model, train_request.ticker, train_request.model_type)
+    record_trained_model(db, train_request.ticker, train_request.model_type, model_path, metrics["r2_score"])
 
     return TrainResponse(
-        ticker=request.ticker.upper(),
-        model_type=request.model_type,
+        ticker=train_request.ticker.upper(),
+        model_type=train_request.model_type,
         rows_trained_on=len(X_train),
         metrics=metrics,
         model_path=model_path,

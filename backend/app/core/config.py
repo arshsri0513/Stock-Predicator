@@ -43,8 +43,23 @@ class Settings(BaseSettings):
     # Telegram alerts (Phase 13)
     TELEGRAM_BOT_TOKEN: str = ""
 
+    # CORS (Phase 15) -- comma-separated list of origins allowed to call
+    # this API. Defaults to local development; in production this gets
+    # set via an environment variable on Render to the real deployed
+    # Vercel URL, e.g. "https://stock-predictor.vercel.app" -- never left
+    # as a hardcoded localhost value or a wildcard "*" in production.
+    ALLOWED_ORIGINS: str = "http://localhost:3000"
+
     # Reads from a .env file sitting next to where the app is run from
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    @property
+    def allowed_origins_list(self) -> list[str]:
+        """Splits the comma-separated ALLOWED_ORIGINS string into a list,
+        trimming whitespace -- so .env can read naturally as
+        ALLOWED_ORIGINS=https://a.com,https://b.com without needing JSON
+        array syntax."""
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
 
 
 # A single shared instance, imported everywhere else in the app

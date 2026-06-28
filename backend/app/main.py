@@ -11,28 +11,36 @@ where actual logic lives.
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
+from app.core.logging_config import setup_logging, get_logger
+from app.core.limiter import limiter
 from app.api import stocks, models, news, auth, watchlist, market, portfolio, alerts, admin
+
+setup_logging()
+logger = get_logger(__name__)
 
 app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.DEBUG,
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 # CORS (Cross-Origin Resource Sharing): by default, browsers block
-# JavaScript on one origin (localhost:3000, our frontend) from calling an
-# API on a different origin (localhost:8000, our backend) -- different
-# ports count as different origins. Without this middleware, every fetch()
-# call from the Next.js app would be silently blocked by the browser with
-# a CORS error, even though our backend itself works fine when tested
-# directly via /docs or curl.
-#
-# In production (Phase 15), this list will need the real deployed frontend
-# URL added -- "*" or localhost-only is fine for local development, but
-# should never be left wide open in a real production deployment.
+# JavaScript on one origin from calling an API on a different origin.
+# settings.ALLOWED_ORIGINS is a comma-separated list read from the
+# environment (see app/core/config.py) -- this defaults to localhost for
+# local development, but in production (Phase 15) gets set to the real
+# deployed frontend URL via an environment variable on Render, rather
+# than being hardcoded here. Never leave this as "*" (allow everything)
+# in a real production deployment -- that defeats the purpose of CORS
+# entirely.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,7 +71,14 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     each route (e.g. catching ValueError for an invalid ticker) -- those
     stay because they give much more helpful, specific error messages.
     This is purely a backstop for the unexpected.
+
+    We now LOG the real exception (Phase 15) before returning the generic
+    client-facing message -- exc_info=True includes the full traceback in
+    the log output, so in production we can actually diagnose what went
+    wrong via the platform's log viewer, even though the client never
+    sees those details.
     """
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}", exc_info=exc)
     return JSONResponse(
         status_code=500,
         content={

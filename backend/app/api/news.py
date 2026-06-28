@@ -7,8 +7,9 @@ and combines the results into one response. All real logic lives in the
 service modules; this file only orchestrates and formats.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
+from app.core.limiter import limiter
 from app.schemas.news_schemas import NewsResponse, NewsItem
 from app.services.stock_data import fetch_news
 from app.services.sentiment_vader import score_text_vader, classify_sentiment
@@ -18,11 +19,16 @@ router = APIRouter()
 
 
 @router.get("/{ticker}", response_model=NewsResponse)
-def get_news_with_sentiment(ticker: str, limit: int = 10):
+@limiter.limit("30/hour")
+def get_news_with_sentiment(ticker: str, request: Request, limit: int = 10):
     """
     Fetch recent news for a ticker and score each headline with BOTH VADER
     (fast, rule-based) and FinBERT (slower, finance-specific deep learning),
     so the results can be directly compared.
+
+    Rate limited to 30 requests/hour per IP (Phase 15) -- FinBERT scoring
+    is computationally expensive (a real neural network forward pass per
+    headline), so this protects shared server resources.
 
     Note: the first call to this endpoint after server startup will be
     noticeably slower than subsequent calls -- FinBERT's model weights

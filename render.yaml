@@ -1,0 +1,56 @@
+# Render Blueprint -- defines our infrastructure as code rather than
+# manually clicking through Render's dashboard. Render reads this file
+# when you connect a repo via "New > Blueprint" and provisions everything
+# below automatically: the backend web service, a managed Postgres
+# database, and a managed Redis instance.
+#
+# Why infrastructure-as-code matters here: it makes our deployment
+# REPRODUCIBLE -- if this service ever needs to be recreated (a new
+# environment, a disaster recovery scenario), this file is the complete,
+# version-controlled source of truth, rather than tribal knowledge of
+# "which buttons did I click on Render's website."
+
+databases:
+  - name: stock-predictor-db
+    plan: free
+    databaseName: stockdb
+    user: stockuser
+
+services:
+  - type: redis
+    name: stock-predictor-redis
+    plan: free
+    ipAllowList: []  # empty list = only accessible from other Render services, not the public internet
+
+  - type: web
+    name: stock-predictor-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: stock-predictor-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: stock-predictor-redis
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true  # Render generates a strong random secret -- we never set this ourselves
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      # SMTP_*, TELEGRAM_BOT_TOKEN, and the frontend's real URL (for CORS)
+      # are NOT listed here -- these are real secrets/values you set
+      # manually in Render's dashboard after deployment, never committed
+      # to this file or to git. See the deployment steps for exactly
+      # which ones to fill in and where.
