@@ -2,10 +2,13 @@
 Deep learning model training, with early stopping, and evaluation using the
 SAME metrics (RMSE, MAE, MAPE, R2) as Phase 5's classical models -- this is
 deliberate, so results are directly comparable across both phases.
+
+LAZY IMPORT (Phase 15): see app/ml/dl_models.py's module docstring for the
+full explanation -- TensorFlow is imported inside functions, not at the
+top of this file, to avoid loading it into memory on every app startup.
 """
 
 import numpy as np
-from tensorflow import keras
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from pathlib import Path
 
@@ -47,6 +50,8 @@ def train_dl_model(
           last epoch before stopping (which could already be a few epochs
           into overfitting).
     """
+    from tensorflow import keras
+
     model = get_dl_model(model_type, window_size)
 
     early_stopping = keras.callbacks.EarlyStopping(
@@ -117,6 +122,7 @@ def save_dl_model(model, scaler, ticker: str, model_type: str) -> str:
 
 def load_dl_model(ticker: str, model_type: str):
     """Load a previously trained DL model and its scaler."""
+    from tensorflow import keras
     import joblib
 
     model_path = SAVED_MODELS_DIR / f"{ticker.upper()}_{model_type}.keras"
