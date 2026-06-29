@@ -14,21 +14,29 @@ VADER's rule-based approach can't do, but a trained language model can.
 The tradeoff: FinBERT is much slower per-call than VADER (a full neural
 network forward pass vs. a dictionary lookup) and requires downloading
 model weights (~400MB) the first time it's used.
-"""
 
-from transformers import pipeline
+LAZY IMPORT (Phase 15): the `from transformers import pipeline` statement
+itself is now inside _get_finbert_pipeline(), not at the top of this
+file. An earlier version only deferred CREATING the pipeline object but
+still imported the transformers library (and transitively, PyTorch) the
+moment this module was imported -- which happened immediately on app
+startup, regardless of whether anyone ever called a sentiment function.
+That alone was enough memory to help exceed Render's free-tier 512MB
+limit before the app could even bind to a port. Moving the import itself
+inside the function means PyTorch/transformers are only loaded into
+memory the first time a real sentiment request comes in.
+"""
 
 # Loaded once and reused -- this is critical for performance. Loading
 # FinBERT's weights from disk takes real time (potentially several
 # seconds); doing this on every request would make the API unusably slow.
-# We lazy-load on first use rather than at import time, so the app starts
-# up fast and only pays this cost when sentiment analysis is actually needed.
 _finbert_pipeline = None
 
 
 def _get_finbert_pipeline():
     global _finbert_pipeline
     if _finbert_pipeline is None:
+        from transformers import pipeline
         _finbert_pipeline = pipeline(
             "sentiment-analysis",
             model="ProsusAI/finbert",
