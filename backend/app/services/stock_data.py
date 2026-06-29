@@ -15,7 +15,42 @@ spreadsheet: rows are dates, columns are Open/High/Low/Close/Volume.
 
 import yfinance as yf
 import pandas as pd
+import requests
 from datetime import datetime, timedelta
+
+# Yahoo Finance's free, unofficial endpoints (which yfinance wraps) appear
+# to apply stricter rate limiting / blocking to requests that look
+# automated -- this affects shared cloud IP ranges (GitHub Actions
+# runners, Render's servers) much more than a typical home internet
+# connection, since many different automated clients can share the same
+# small pool of datacenter IPs. We saw this exact failure mode
+# independently in Phase 14 (CI tests) and Phase 15 (live Render
+# deployment) -- "Expecting value: line 1 column 1" / "possibly delisted"
+# errors for tickers that are obviously real and listed.
+#
+# This session gives yfinance realistic browser-like headers, which
+# sometimes (not guaranteed) helps requests blend in with normal traffic
+# rather than being immediately flagged as automated. This is a genuine
+# attempt at a workaround, not a guaranteed fix -- if Yahoo's blocking is
+# based on IP reputation/volume rather than header inspection, this won't
+# help, and that would be an honest limitation of relying on a free,
+# unofficial data source from cloud infrastructure.
+_session = requests.Session()
+_session.headers.update({
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    )
+})
+
+
+def _get_ticker(symbol: str) -> yf.Ticker:
+    """
+    Single shared place that constructs a yf.Ticker -- every function in
+    this file goes through here rather than calling yf.Ticker() directly,
+    so the browser-header workaround above applies everywhere consistently.
+    """
+    return yf.Ticker(symbol, session=_session)
 
 
 def fetch_historical_data(
@@ -42,7 +77,7 @@ def fetch_historical_data(
     Raises:
         ValueError: if the ticker is invalid or no data was returned.
     """
-    stock = yf.Ticker(ticker)
+    stock = _get_ticker(ticker)
     df = stock.history(period=period, interval=interval)
 
     if df.empty:
@@ -69,7 +104,7 @@ def fetch_recent_data(ticker: str, days: int = 5) -> pd.DataFrame:
     """
     end = datetime.now()
     start = end - timedelta(days=days)
-    stock = yf.Ticker(ticker)
+    stock = _get_ticker(ticker)
     df = stock.history(start=start, end=end, interval="1d")
 
     if df.empty:
@@ -95,7 +130,7 @@ def fetch_news(ticker: str, limit: int = 10) -> list[dict]:
     Returns a list of dicts: [{"title": ..., "publisher": ..., "link": ...,
     "published": ...}, ...]
     """
-    stock = yf.Ticker(ticker)
+    stock = _get_ticker(ticker)
     raw_news = stock.news or []
 
     articles = []
@@ -126,7 +161,7 @@ def fetch_company_info(ticker: str) -> dict:
     Fetch basic company metadata (name, sector, market cap, etc.).
     Useful for displaying context alongside charts in the frontend.
     """
-    stock = yf.Ticker(ticker)
+    stock = _get_ticker(ticker)
     info = stock.info
 
     if not info or "symbol" not in info:
