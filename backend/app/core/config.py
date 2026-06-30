@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     # Database (filled in properly in Phase 9)
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/stockdb"
 
+    # Stock data fallback (Phase 8) -- used by app/services/stock_data.py
+    # when yfinance is blocked from cloud IPs. Get a free key (no credit
+    # card, 800 requests/day) at https://twelvedata.com. Left blank by
+    # default; the fallback simply raises a clear error if unset rather
+    # than failing silently.
+    TWELVE_DATA_API_KEY: str = ""
+
     # Redis (filled in properly in Phase 13)
     REDIS_URL: str = "redis://localhost:6379/0"
 

@@ -18,6 +18,8 @@ import pandas as pd
 import requests
 from datetime import datetime, timedelta
 
+from app.core.config import settings
+
 # Yahoo Finance's free, unofficial endpoints (which yfinance wraps) appear
 # to apply stricter rate limiting / blocking to requests that look
 # automated -- this affects shared cloud IP ranges (GitHub Actions
@@ -53,91 +55,109 @@ def _get_ticker(symbol: str) -> yf.Ticker:
     return yf.Ticker(symbol, session=_session)
 
 
-_PERIOD_TO_DAYS = {
-    "1d": 1, "5d": 5, "1mo": 31, "3mo": 93, "6mo": 186,
-    "1y": 365, "2y": 730, "5y": 1825, "10y": 3650,
-    "ytd": None,  # handled specially below
-    "max": 7300,  # ~20y, stooq's free CSV history rarely goes back further anyway
+_PERIOD_TO_OUTPUTSIZE = {
+    # Twelve Data's time_series endpoint takes an outputsize (row count),
+    # not a date range, on the free plan -- so we translate each period
+    # into roughly how many bars of the given interval that period covers.
+    "1d": 1, "5d": 5, "1mo": 22, "3mo": 66, "6mo": 132,
+    "1y": 252, "2y": 504, "5y": 1260, "10y": 2520,
+    "max": 5000,  # Twelve Data's free-plan cap per request
+}
+
+_INTERVAL_TO_TWELVEDATA = {
+    "1m": "1min", "5m": "5min", "15m": "15min", "30m": "30min",
+    "1h": "1h", "1d": "1day", "1wk": "1week", "1mo": "1month",
 }
 
 
-def _stooq_symbol(ticker: str) -> str:
+def _twelvedata_symbol(ticker: str) -> str:
     """
-    Map a Yahoo-style ticker to Stooq's symbol format.
+    Map a Yahoo-style ticker to Twelve Data's symbol format.
 
-    Stooq wants a lowercase symbol with a market suffix, e.g. "aapl.us".
-    We only confidently support plain US tickers (no existing suffix) here
-    -- that covers the common case (AAPL, TSLA, MSFT, NVDA, ...). Tickers
-    that already carry a Yahoo-style suffix (e.g. "RELIANCE.NS" for NSE)
-    aren't mapped, since Stooq's suffix scheme for non-US markets doesn't
-    line up 1:1 with Yahoo's, and silently guessing wrong would return data
-    for the wrong instrument -- worse than no fallback at all.
+    Twelve Data's Basic (free) plan covers US equities, forex, and crypto
+    using the plain ticker (e.g. "AAPL") -- no suffix needed. We only
+    confidently support that here. Tickers carrying a Yahoo-style exchange
+    suffix (e.g. "RELIANCE.NS" for NSE) aren't mapped: Twelve Data
+    identifies non-US exchanges via a separate `exchange` parameter rather
+    than a suffix, the mapping isn't 1:1, and most non-US exchanges sit
+    behind Twelve Data's paid tiers anyway -- so guessing here would either
+    silently fetch the wrong instrument or just fail, and an explicit error
+    is better than either.
     """
     if "." in ticker:
         raise ValueError(
-            f"No Stooq fallback mapping for '{ticker}' (non-US suffix)."
+            f"No Twelve Data fallback mapping for '{ticker}' (non-US suffix)."
         )
-    return f"{ticker.lower()}.us"
+    return ticker.upper()
 
 
-def _fetch_from_stooq(ticker: str, period: str, interval: str) -> pd.DataFrame:
+def _fetch_from_twelvedata(ticker: str, period: str, interval: str) -> pd.DataFrame:
     """
-    Free, no-API-key fallback data source.
+    Free-tier fallback data source (used when yfinance fails).
 
-    Stooq (https://stooq.com) publishes daily/weekly/monthly OHLCV data as
-    plain CSV over HTTP, with no API key, no auth, and -- unlike Yahoo's
-    unofficial endpoints -- no observed pattern of blocking cloud/datacenter
-    IPs. The tradeoff: free + reliable from servers, but EOD data only (no
-    intraday candles, and quotes lag by the time CSV is published) and only
-    confidently mapped for plain US tickers here. This is exactly the right
-    tradeoff for an educational dashboard/prediction app, not for a live
-    trading terminal.
+    Twelve Data (https://twelvedata.com) requires a free API key (no credit
+    card) -- unlike our earlier Stooq-based fallback, which broke when
+    Stooq started requiring a paid key for CSV downloads in March 2026.
+    Twelve Data's Basic plan: 800 requests/day, 8/minute, US equities +
+    forex + crypto, data delayed by several hours (not real-time) -- which
+    is an honest, acceptable tradeoff for an educational dashboard, not a
+    live trading terminal.
+
+    Requires the TWELVE_DATA_API_KEY setting to be configured (see
+    app/core/config.py and the README for how to get a free key).
     """
-    if interval not in ("1d", "1wk", "1mo"):
+    if not settings.TWELVE_DATA_API_KEY:
         raise ValueError(
-            f"Stooq fallback only supports daily/weekly/monthly data, not "
-            f"interval='{interval}'."
+            "TWELVE_DATA_API_KEY is not set. Get a free key at "
+            "https://twelvedata.com and set it as an environment variable."
         )
-    stooq_interval = {"1d": "d", "1wk": "w", "1mo": "m"}[interval]
-    symbol = _stooq_symbol(ticker)
 
-    if period == "ytd":
-        start = datetime(datetime.now().year, 1, 1)
-    else:
-        days = _PERIOD_TO_DAYS.get(period, 1825)
-        start = datetime.now() - timedelta(days=days)
+    if interval not in _INTERVAL_TO_TWELVEDATA:
+        raise ValueError(f"Twelve Data fallback doesn't support interval='{interval}'.")
+    td_interval = _INTERVAL_TO_TWELVEDATA[interval]
+    symbol = _twelvedata_symbol(ticker)
+    outputsize = _PERIOD_TO_OUTPUTSIZE.get(period, 1260)
 
-    url = "https://stooq.com/q/d/l/"
+    url = "https://api.twelvedata.com/time_series"
     params = {
-        "s": symbol,
-        "d1": start.strftime("%Y%m%d"),
-        "d2": datetime.now().strftime("%Y%m%d"),
-        "i": stooq_interval,
+        "symbol": symbol,
+        "interval": td_interval,
+        "outputsize": outputsize,
+        "apikey": settings.TWELVE_DATA_API_KEY,
     }
     resp = requests.get(url, params=params, timeout=10)
     resp.raise_for_status()
+    payload = resp.json()
 
-    # Stooq returns the literal text "No data" (not a 4xx) for unknown
-    # symbols or symbols with nothing in the requested range -- it's a 200
-    # response either way, so we can't rely on status code alone.
-    if not resp.text or resp.text.strip().lower().startswith("no data"):
-        raise ValueError(f"Stooq returned no data for '{ticker}' ({symbol}).")
+    # Twelve Data returns HTTP 200 even on logical errors (bad symbol,
+    # rate limit hit, invalid key) -- the real status lives inside the
+    # JSON body, so we have to check that explicitly.
+    if payload.get("status") == "error" or "values" not in payload:
+        raise ValueError(
+            f"Twelve Data error for '{ticker}': {payload.get('message', payload)}"
+        )
 
-    from io import StringIO
-    df = pd.read_csv(StringIO(resp.text))
-    if df.empty or "Date" not in df.columns:
-        raise ValueError(f"Stooq returned an unexpected/empty response for '{ticker}'.")
+    df = pd.DataFrame(payload["values"])
+    if df.empty:
+        raise ValueError(f"Twelve Data returned no rows for '{ticker}'.")
 
-    df["Date"] = pd.to_datetime(df["Date"])
-    df = df.set_index("Date")
-    df = df.rename(columns=str.title)  # stooq headers are already title-case, kept for safety
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    df = df.set_index("datetime").rename_axis("Date")
+    df = df.rename(columns={
+        "open": "Open", "high": "High", "low": "Low",
+        "close": "Close", "volume": "Volume",
+    })
+    for col in ("Open", "High", "Low", "Close", "Volume"):
+        df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Match yfinance's column shape so downstream code (clean_ohlcv,
-    # indicators, the /history route) doesn't need to know which provider
-    # the data came from.
-    for col in ("Dividends", "Stock Splits"):
-        if col not in df.columns:
-            df[col] = 0
+    # Twelve Data doesn't return dividends/splits on the free plan --
+    # default to 0 so the shape matches yfinance's output exactly.
+    df["Dividends"] = 0
+    df["Stock Splits"] = 0
+
+    # Twelve Data returns rows newest-first; flip to chronological order
+    # to match yfinance's convention (downstream code assumes ascending).
+    df = df.sort_index()
 
     return df[["Open", "High", "Low", "Close", "Volume", "Dividends", "Stock Splits"]]
 
@@ -153,9 +173,9 @@ def fetch_historical_data(
     Tries yfinance (Yahoo Finance) first. If that fails -- which happens
     intermittently from cloud-hosted servers due to Yahoo's unofficial-API
     blocking, see the module docstring -- automatically falls back to
-    Stooq, a free CSV data source with no API key and no observed
-    cloud-IP blocking. The fallback is best-effort: it only covers plain
-    US tickers and daily/weekly/monthly intervals (see _fetch_from_stooq).
+    Twelve Data, a free-tier (API-key-required) data source. The fallback
+    is best-effort: it only covers plain US tickers (see
+    _twelvedata_symbol) and requires TWELVE_DATA_API_KEY to be set.
 
     Args:
         ticker: Stock symbol, e.g. "AAPL", "TSLA", "RELIANCE.NS" (Indian stocks
@@ -164,8 +184,7 @@ def fetch_historical_data(
                 "6mo","1y","2y","5y","10y","ytd","max".
         interval: Candle size. Valid values: "1m","5m","15m","30m","1h","1d",
                   "1wk","1mo". Note: intervals under 1 day only work for
-                  periods of 60 days or less (Yahoo Finance limitation, not ours),
-                  and only via the yfinance path -- Stooq has no intraday fallback.
+                  periods of 60 days or less (Yahoo Finance limitation, not ours).
 
     Returns:
         A pandas DataFrame with columns: Open, High, Low, Close, Volume,
@@ -192,13 +211,13 @@ def fetch_historical_data(
     except Exception as e:
         yfinance_error = e
 
-    # yfinance failed -- try the free Stooq fallback before giving up.
+    # yfinance failed -- try the free-tier Twelve Data fallback before giving up.
     try:
-        return _fetch_from_stooq(ticker, period=period, interval=interval)
-    except Exception as stooq_error:
+        return _fetch_from_twelvedata(ticker, period=period, interval=interval)
+    except Exception as td_error:
         raise ValueError(
             f"Could not fetch data for '{ticker}' from Yahoo Finance "
-            f"({yfinance_error}) or the Stooq fallback ({stooq_error})."
+            f"({yfinance_error}) or the Twelve Data fallback ({td_error})."
         )
 
 
@@ -211,7 +230,7 @@ def fetch_recent_data(ticker: str, days: int = 5) -> pd.DataFrame:
     is NOT a true real-time trading feed. This is appropriate for our
     educational/portfolio project, not for actual trading decisions.
 
-    Falls back to Stooq (same as fetch_historical_data) if yfinance fails.
+    Falls back to Twelve Data (same as fetch_historical_data) if yfinance fails.
     """
     end = datetime.now()
     start = end - timedelta(days=days)
@@ -227,13 +246,13 @@ def fetch_recent_data(ticker: str, days: int = 5) -> pd.DataFrame:
         yfinance_error = e
 
     try:
-        period = "1mo" if days <= 31 else "3mo"
-        df = _fetch_from_stooq(ticker, period=period, interval="1d")
+        period = "1mo" if days <= 22 else "3mo"
+        df = _fetch_from_twelvedata(ticker, period=period, interval="1d")
         return df.tail(days)
-    except Exception as stooq_error:
+    except Exception as td_error:
         raise ValueError(
             f"Could not fetch recent data for '{ticker}' from Yahoo Finance "
-            f"({yfinance_error}) or the Stooq fallback ({stooq_error})."
+            f"({yfinance_error}) or the Twelve Data fallback ({td_error})."
         )
 
 
