@@ -53,6 +53,95 @@ def _get_ticker(symbol: str) -> yf.Ticker:
     return yf.Ticker(symbol, session=_session)
 
 
+_PERIOD_TO_DAYS = {
+    "1d": 1, "5d": 5, "1mo": 31, "3mo": 93, "6mo": 186,
+    "1y": 365, "2y": 730, "5y": 1825, "10y": 3650,
+    "ytd": None,  # handled specially below
+    "max": 7300,  # ~20y, stooq's free CSV history rarely goes back further anyway
+}
+
+
+def _stooq_symbol(ticker: str) -> str:
+    """
+    Map a Yahoo-style ticker to Stooq's symbol format.
+
+    Stooq wants a lowercase symbol with a market suffix, e.g. "aapl.us".
+    We only confidently support plain US tickers (no existing suffix) here
+    -- that covers the common case (AAPL, TSLA, MSFT, NVDA, ...). Tickers
+    that already carry a Yahoo-style suffix (e.g. "RELIANCE.NS" for NSE)
+    aren't mapped, since Stooq's suffix scheme for non-US markets doesn't
+    line up 1:1 with Yahoo's, and silently guessing wrong would return data
+    for the wrong instrument -- worse than no fallback at all.
+    """
+    if "." in ticker:
+        raise ValueError(
+            f"No Stooq fallback mapping for '{ticker}' (non-US suffix)."
+        )
+    return f"{ticker.lower()}.us"
+
+
+def _fetch_from_stooq(ticker: str, period: str, interval: str) -> pd.DataFrame:
+    """
+    Free, no-API-key fallback data source.
+
+    Stooq (https://stooq.com) publishes daily/weekly/monthly OHLCV data as
+    plain CSV over HTTP, with no API key, no auth, and -- unlike Yahoo's
+    unofficial endpoints -- no observed pattern of blocking cloud/datacenter
+    IPs. The tradeoff: free + reliable from servers, but EOD data only (no
+    intraday candles, and quotes lag by the time CSV is published) and only
+    confidently mapped for plain US tickers here. This is exactly the right
+    tradeoff for an educational dashboard/prediction app, not for a live
+    trading terminal.
+    """
+    if interval not in ("1d", "1wk", "1mo"):
+        raise ValueError(
+            f"Stooq fallback only supports daily/weekly/monthly data, not "
+            f"interval='{interval}'."
+        )
+    stooq_interval = {"1d": "d", "1wk": "w", "1mo": "m"}[interval]
+    symbol = _stooq_symbol(ticker)
+
+    if period == "ytd":
+        start = datetime(datetime.now().year, 1, 1)
+    else:
+        days = _PERIOD_TO_DAYS.get(period, 1825)
+        start = datetime.now() - timedelta(days=days)
+
+    url = "https://stooq.com/q/d/l/"
+    params = {
+        "s": symbol,
+        "d1": start.strftime("%Y%m%d"),
+        "d2": datetime.now().strftime("%Y%m%d"),
+        "i": stooq_interval,
+    }
+    resp = requests.get(url, params=params, timeout=10)
+    resp.raise_for_status()
+
+    # Stooq returns the literal text "No data" (not a 4xx) for unknown
+    # symbols or symbols with nothing in the requested range -- it's a 200
+    # response either way, so we can't rely on status code alone.
+    if not resp.text or resp.text.strip().lower().startswith("no data"):
+        raise ValueError(f"Stooq returned no data for '{ticker}' ({symbol}).")
+
+    from io import StringIO
+    df = pd.read_csv(StringIO(resp.text))
+    if df.empty or "Date" not in df.columns:
+        raise ValueError(f"Stooq returned an unexpected/empty response for '{ticker}'.")
+
+    df["Date"] = pd.to_datetime(df["Date"])
+    df = df.set_index("Date")
+    df = df.rename(columns=str.title)  # stooq headers are already title-case, kept for safety
+
+    # Match yfinance's column shape so downstream code (clean_ohlcv,
+    # indicators, the /history route) doesn't need to know which provider
+    # the data came from.
+    for col in ("Dividends", "Stock Splits"):
+        if col not in df.columns:
+            df[col] = 0
+
+    return df[["Open", "High", "Low", "Close", "Volume", "Dividends", "Stock Splits"]]
+
+
 def fetch_historical_data(
     ticker: str,
     period: str = "5y",
@@ -61,6 +150,13 @@ def fetch_historical_data(
     """
     Fetch historical OHLCV data for a given stock ticker.
 
+    Tries yfinance (Yahoo Finance) first. If that fails -- which happens
+    intermittently from cloud-hosted servers due to Yahoo's unofficial-API
+    blocking, see the module docstring -- automatically falls back to
+    Stooq, a free CSV data source with no API key and no observed
+    cloud-IP blocking. The fallback is best-effort: it only covers plain
+    US tickers and daily/weekly/monthly intervals (see _fetch_from_stooq).
+
     Args:
         ticker: Stock symbol, e.g. "AAPL", "TSLA", "RELIANCE.NS" (Indian stocks
                 need the ".NS" or ".BO" suffix for NSE/BSE listings).
@@ -68,29 +164,42 @@ def fetch_historical_data(
                 "6mo","1y","2y","5y","10y","ytd","max".
         interval: Candle size. Valid values: "1m","5m","15m","30m","1h","1d",
                   "1wk","1mo". Note: intervals under 1 day only work for
-                  periods of 60 days or less (Yahoo Finance limitation, not ours).
+                  periods of 60 days or less (Yahoo Finance limitation, not ours),
+                  and only via the yfinance path -- Stooq has no intraday fallback.
 
     Returns:
         A pandas DataFrame with columns: Open, High, Low, Close, Volume,
         Dividends, Stock Splits — indexed by Date.
 
     Raises:
-        ValueError: if the ticker is invalid or no data was returned.
+        ValueError: if the ticker is invalid or no data was returned from
+                    either provider.
     """
-    stock = _get_ticker(ticker)
-    df = stock.history(period=period, interval=interval)
+    yfinance_error = None
+    try:
+        stock = _get_ticker(ticker)
+        df = stock.history(period=period, interval=interval)
+        if df.empty:
+            raise ValueError(
+                f"No data returned for ticker '{ticker}'. "
+                f"Check the symbol is correct (e.g. 'AAPL', not 'Apple')."
+            )
+        # Yahoo Finance sometimes includes a timezone-aware index; we
+        # standardize it to plain dates to avoid timezone bugs later in
+        # feature engineering.
+        df.index = df.index.tz_localize(None) if df.index.tz is not None else df.index
+        return df
+    except Exception as e:
+        yfinance_error = e
 
-    if df.empty:
+    # yfinance failed -- try the free Stooq fallback before giving up.
+    try:
+        return _fetch_from_stooq(ticker, period=period, interval=interval)
+    except Exception as stooq_error:
         raise ValueError(
-            f"No data returned for ticker '{ticker}'. "
-            f"Check the symbol is correct (e.g. 'AAPL', not 'Apple')."
+            f"Could not fetch data for '{ticker}' from Yahoo Finance "
+            f"({yfinance_error}) or the Stooq fallback ({stooq_error})."
         )
-
-    # Yahoo Finance sometimes includes a timezone-aware index; we standardize
-    # it to plain dates to avoid timezone bugs later in feature engineering.
-    df.index = df.index.tz_localize(None) if df.index.tz is not None else df.index
-
-    return df
 
 
 def fetch_recent_data(ticker: str, days: int = 5) -> pd.DataFrame:
@@ -101,16 +210,31 @@ def fetch_recent_data(ticker: str, days: int = 5) -> pd.DataFrame:
     Note: yfinance data has an inherent delay (typically a few minutes) and
     is NOT a true real-time trading feed. This is appropriate for our
     educational/portfolio project, not for actual trading decisions.
+
+    Falls back to Stooq (same as fetch_historical_data) if yfinance fails.
     """
     end = datetime.now()
     start = end - timedelta(days=days)
-    stock = _get_ticker(ticker)
-    df = stock.history(start=start, end=end, interval="1d")
 
-    if df.empty:
-        raise ValueError(f"No recent data found for ticker '{ticker}'.")
+    yfinance_error = None
+    try:
+        stock = _get_ticker(ticker)
+        df = stock.history(start=start, end=end, interval="1d")
+        if df.empty:
+            raise ValueError(f"No recent data found for ticker '{ticker}'.")
+        return df
+    except Exception as e:
+        yfinance_error = e
 
-    return df
+    try:
+        period = "1mo" if days <= 31 else "3mo"
+        df = _fetch_from_stooq(ticker, period=period, interval="1d")
+        return df.tail(days)
+    except Exception as stooq_error:
+        raise ValueError(
+            f"Could not fetch recent data for '{ticker}' from Yahoo Finance "
+            f"({yfinance_error}) or the Stooq fallback ({stooq_error})."
+        )
 
 
 def fetch_news(ticker: str, limit: int = 10) -> list[dict]:
