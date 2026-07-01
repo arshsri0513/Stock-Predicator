@@ -30,7 +30,13 @@ memory the first time a real sentiment request comes in.
 # Loaded once and reused -- this is critical for performance. Loading
 # FinBERT's weights from disk takes real time (potentially several
 # seconds); doing this on every request would make the API unusably slow.
+import os
+import requests
+from app.core.config import settings
+from app.services.sentiment_vader import score_text_vader, classify_sentiment
+
 _finbert_pipeline = None
+HF_API_URL = "https://api-inference.huggingface.co/models/ProsusAI/finbert"
 
 
 def _get_finbert_pipeline():
@@ -44,45 +50,109 @@ def _get_finbert_pipeline():
     return _finbert_pipeline
 
 
+def _query_huggingface_api(texts: list[str]) -> list[dict] | None:
+    """
+    Query Hugging Face's serverless Inference API to score text sentiment.
+    Returns a list of scored dicts, e.g. [{'label': 'positive', 'confidence': 0.95}, ...]
+    or None if the API fails / rate limits.
+    """
+    token = os.environ.get("HF_API_TOKEN") or os.environ.get("HUGGINGFACE_API_KEY")
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    try:
+        response = requests.post(
+            HF_API_URL,
+            headers=headers,
+            json={"inputs": texts, "options": {"wait_for_model": True}},
+            timeout=10,
+        )
+        if response.status_code == 200:
+            payload = response.json()
+            # Standardize Hugging Face's return formats (sometimes nested list, sometimes single list)
+            if isinstance(payload, dict):
+                payload = [payload]
+            if len(payload) > 0 and not isinstance(payload[0], list):
+                payload = [payload]
+
+            results = []
+            for item in payload:
+                # Find the label with highest score
+                best = max(item, key=lambda x: x["score"])
+                results.append({
+                    "label": best["label"].lower(),  # standardized to lowercase
+                    "confidence": round(float(best["score"]), 4),
+                })
+            return results
+    except Exception:
+        pass
+    return None
+
+
 def score_text_finbert(text: str) -> dict:
     """
     Score a single piece of text using FinBERT.
-
-    Returns a dict with the predicted label (positive/negative/neutral)
-    and FinBERT's confidence score for that label (0 to 1).
-
-    Note: FinBERT truncates input to 512 tokens (a BERT architecture
-    limit) -- for headlines this is never an issue, but worth knowing if
-    you ever feed it full long articles instead of just headlines.
+    Tries the free Hugging Face serverless Inference API first. If that fails,
+    falls back to VADER in production (to avoid memory-heavy torch imports)
+    or local model pipeline in development.
     """
-    classifier = _get_finbert_pipeline()
-    result = classifier(text, truncation=True)[0]
+    # 1. Try serverless API first
+    api_results = _query_huggingface_api([text])
+    if api_results:
+        return api_results[0]
 
-    return {
-        "label": result["label"],
-        "confidence": round(float(result["score"]), 4),
-    }
+    # 2. Fall back in production (prevent memory bloat / OOM crash)
+    if settings.ENVIRONMENT == "production":
+        vader_res = score_text_vader(text)
+        return {
+            "label": classify_sentiment(vader_res["compound"]),
+            "confidence": abs(vader_res["compound"]) if vader_res["compound"] != 0 else 0.5,
+        }
+
+    # 3. Fall back in development (local transformers pipeline)
+    try:
+        classifier = _get_finbert_pipeline()
+        result = classifier(text, truncation=True)[0]
+        return {
+            "label": result["label"].lower(),
+            "confidence": round(float(result["score"]), 4),
+        }
+    except Exception:
+        # Ultimate fallback to VADER if local model fails to load
+        vader_res = score_text_vader(text)
+        return {
+            "label": classify_sentiment(vader_res["compound"]),
+            "confidence": abs(vader_res["compound"]) if vader_res["compound"] != 0 else 0.5,
+        }
 
 
 def score_headlines_finbert(headlines: list[str]) -> list[dict]:
     """
-    Score a list of headlines with FinBERT. Uses a single batched call
-    rather than looping one-by-one -- batching is significantly more
-    efficient for neural network inference, since the model can process
-    multiple inputs in parallel rather than paying the per-call overhead
-    repeatedly.
+    Score a list of headlines with FinBERT, using batching where possible.
     """
     if not headlines:
         return []
 
-    classifier = _get_finbert_pipeline()
-    raw_results = classifier(headlines, truncation=True)
+    # 1. Try serverless API first
+    api_results = _query_huggingface_api(headlines)
+    if api_results:
+        return [
+            {
+                "text": headline,
+                "label": res["label"],
+                "confidence": res["confidence"],
+            }
+            for headline, res in zip(headlines, api_results)
+        ]
 
-    return [
-        {
-            "text": headline,
-            "label": result["label"],
-            "confidence": round(float(result["score"]), 4),
-        }
-        for headline, result in zip(headlines, raw_results)
-    ]
+    # 2. Fall back headline-by-headline
+    results = []
+    for hl in headlines:
+        res = score_text_finbert(hl)
+        results.append({
+            "text": hl,
+            "label": res["label"],
+            "confidence": res["confidence"],
+        })
+    return results

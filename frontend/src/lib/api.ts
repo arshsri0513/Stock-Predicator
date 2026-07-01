@@ -18,6 +18,9 @@ import type {
   EvaluateResponse,
   NewsResponse,
   ApiErrorBody,
+  UserResponse,
+  TokenResponse,
+  WatchlistItem,
 } from "./types";
 
 const API_BASE_URL =
@@ -41,8 +44,25 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Get dynamic auth header from localStorage if running client-side.
+ */
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("token");
+    if (token) {
+      return { Authorization: `Bearer ${token}` };
+    }
+  }
+  return {};
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`);
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
   if (!res.ok) {
     const body: ApiErrorBody = await res.json().catch(() => ({ detail: res.statusText }));
     throw new ApiError(res.status, body.detail || res.statusText);
@@ -53,7 +73,10 @@ export async function apiGet<T>(path: string): Promise<T> {
 export async function apiPost<T>(path: string, data: unknown): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
@@ -61,6 +84,20 @@ export async function apiPost<T>(path: string, data: unknown): Promise<T> {
     throw new ApiError(res.status, body.detail || res.statusText);
   }
   return res.json();
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "DELETE",
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const body: ApiErrorBody = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new ApiError(res.status, body.detail || res.statusText);
+  }
+  return res.status === 204 ? (null as T) : res.json().catch(() => null);
 }
 
 // Placeholder used since Phase 2 — proves the frontend can reach the
@@ -120,5 +157,35 @@ export async function evaluateModel(
 
 export async function getNews(ticker: string, limit: number = 10): Promise<NewsResponse> {
   return apiGet(`/news/${ticker}?limit=${limit}`);
+}
+
+
+// ---- Auth & Profile (Phase 12) ----
+
+export async function signup(email: string, password: string): Promise<UserResponse> {
+  return apiPost<UserResponse>("/auth/signup", { email, password });
+}
+
+export async function login(email: string, password: string): Promise<TokenResponse> {
+  return apiPost<TokenResponse>("/auth/login", { email, password });
+}
+
+export async function getMe(): Promise<UserResponse> {
+  return apiGet<UserResponse>("/auth/me");
+}
+
+
+// ---- Watchlist (Phase 12) ----
+
+export async function getWatchlist(): Promise<WatchlistItem[]> {
+  return apiGet<WatchlistItem[]>("/watchlist");
+}
+
+export async function addToWatchlist(ticker: string): Promise<WatchlistItem> {
+  return apiPost<WatchlistItem>("/watchlist", { ticker });
+}
+
+export async function removeFromWatchlist(ticker: string): Promise<void> {
+  return apiDelete<void>(`/watchlist/${ticker}`);
 }
 

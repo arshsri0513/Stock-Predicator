@@ -8,6 +8,7 @@ wired in below, keeping this file a thin "assembly point" rather than
 where actual logic lives.
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,13 +18,24 @@ from app.core.config import settings
 from app.core.logging_config import setup_logging, get_logger
 from app.core.limiter import limiter
 from app.api import stocks, models, news, auth, watchlist, market, portfolio, alerts, admin
+from app.core.database import engine, Base
+import app.models
 
 setup_logging()
 logger = get_logger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Auto-creating database tables if they do not exist...")
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.DEBUG,
+    lifespan=lifespan,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

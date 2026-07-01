@@ -124,3 +124,21 @@ export interface NewsResponse {
 export interface ApiErrorBody {
   detail: string;
 }
+
+
+// ---- Auth & Watchlist (Phase 12) ----
+
+export interface UserResponse {
+  id: string;
+  email: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+}
+
+export interface WatchlistItem {
+  id: string;
+  ticker: string;
+  added_at: string;
+}

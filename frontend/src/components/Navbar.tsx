@@ -11,17 +11,35 @@ import { usePathname } from "next/navigation";
  * active link marked with the signal-up color rather than a background pill.
  */
 
+import { useEffect, useState } from "react";
+
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/predict", label: "Prediction" },
   { href: "/charts", label: "Charts" },
   { href: "/news", label: "News" },
-  { href: "/profile", label: "Profile" },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    function checkAuth() {
+      setIsLoggedIn(!!localStorage.getItem("token"));
+    }
+
+    checkAuth();
+    window.addEventListener("auth-change", checkAuth);
+    return () => window.removeEventListener("auth-change", checkAuth);
+  }, []);
+
+  function handleLogout() {
+    localStorage.removeItem("token");
+    setIsLoggedIn(false);
+    window.dispatchEvent(new Event("auth-change"));
+  }
 
   return (
     <nav
@@ -49,6 +67,36 @@ export default function Navbar() {
               </Link>
             );
           })}
+          {isLoggedIn ? (
+            <>
+              <Link
+                href="/profile"
+                className="rounded px-3 py-1.5 text-sm font-medium transition-colors"
+                style={{
+                  color: pathname === "/profile" ? "var(--signal-up)" : "var(--text-secondary)",
+                }}
+              >
+                Profile
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="rounded px-3 py-1.5 text-sm font-medium transition-colors hover:text-white"
+                style={{ color: "var(--signal-down)" }}
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded px-3 py-1.5 text-sm font-medium transition-colors"
+              style={{
+                color: pathname === "/login" ? "var(--signal-up)" : "var(--text-secondary)",
+              }}
+            >
+              Login
+            </Link>
+          )}
         </div>
       </div>
     </nav>

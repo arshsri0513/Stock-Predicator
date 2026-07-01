@@ -256,46 +256,81 @@ def fetch_recent_data(ticker: str, days: int = 5) -> pd.DataFrame:
         )
 
 
+import xml.etree.ElementTree as ET
+
+def fetch_news_rss(ticker: str, limit: int = 10) -> list[dict]:
+    """
+    Fallback news source that fetches headlines from Yahoo Finance's RSS feed
+    directly using standard HTTP requests. This feed is rarely blocked by Yahoo's
+    automated-request filters and does not require loading yfinance's heavier
+    network dependencies, making it reliable for cloud deployments like Render.
+    """
+    url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker.upper()}"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        )
+    }
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        root = ET.fromstring(resp.content)
+        
+        articles = []
+        for item in root.findall(".//item")[:limit]:
+            title = item.find("title")
+            link = item.find("link")
+            pub_date = item.find("pubDate")
+            
+            articles.append({
+                "title": title.text if title is not None else "No Title",
+                "publisher": "Yahoo Finance RSS",
+                "link": link.text if link is not None else "",
+                "published": pub_date.text if pub_date is not None else "",
+            })
+        return articles
+    except Exception as e:
+        # If even RSS fallback fails, raise a clear error
+        raise ValueError(f"RSS news fallback failed: {str(e)}")
+
+
 def fetch_news(ticker: str, limit: int = 10) -> list[dict]:
     """
-    Fetch recent news headlines for a ticker via yfinance's built-in news
-    property. This is a free, no-extra-API-key data source -- consistent
-    with our Phase 1 decision to keep development costs at zero -- but a
-    real limitation worth knowing: it's less comprehensive than a dedicated
-    news API (NewsAPI, Alpha Vantage News, etc.) and yfinance's exact
-    response shape has changed across versions in the past.
-
-    We extract defensively (using .get() with fallbacks) rather than
-    assuming a fixed structure, since a malformed or missing field
-    shouldn't crash the whole request -- it should just skip that one
-    article.
-
-    Returns a list of dicts: [{"title": ..., "publisher": ..., "link": ...,
-    "published": ...}, ...]
+    Fetch recent news headlines for a ticker.
+    Tries yfinance first. If that fails (e.g. cloud IP blocking) or returns
+    an empty list, automatically falls back to fetching directly from the
+    Yahoo Finance RSS feed.
     """
-    stock = _get_ticker(ticker)
-    raw_news = stock.news or []
+    yfinance_error = None
+    try:
+        stock = _get_ticker(ticker)
+        raw_news = stock.news or []
+        if raw_news:
+            articles = []
+            for item in raw_news[:limit]:
+                content = item.get("content", item)
+                title = content.get("title")
+                if not title:
+                    continue
+                articles.append({
+                    "title": title,
+                    "publisher": (content.get("provider") or {}).get("displayName", "Unknown"),
+                    "link": (content.get("canonicalUrl") or {}).get("url", ""),
+                    "published": content.get("pubDate", ""),
+                })
+            return articles
+    except Exception as e:
+        yfinance_error = e
 
-    articles = []
-    for item in raw_news[:limit]:
-        # yfinance nests article data under a "content" key in newer
-        # versions; older versions had fields at the top level. We check
-        # both so this keeps working regardless of which version is
-        # installed.
-        content = item.get("content", item)
-
-        title = content.get("title")
-        if not title:
-            continue  # skip malformed entries with no headline at all
-
-        articles.append({
-            "title": title,
-            "publisher": (content.get("provider") or {}).get("displayName", "Unknown"),
-            "link": (content.get("canonicalUrl") or {}).get("url", ""),
-            "published": content.get("pubDate", ""),
-        })
-
-    return articles
+    # Fallback to RSS feed if yfinance failed or returned no news
+    try:
+        return fetch_news_rss(ticker, limit=limit)
+    except Exception as rss_error:
+        raise ValueError(
+            f"Could not fetch news for '{ticker}' from Yahoo Finance ({yfinance_error}) "
+            f"or the RSS fallback ({rss_error})."
+        )
 
 
 
