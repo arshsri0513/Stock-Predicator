@@ -64,11 +64,21 @@ def get_top_movers(limit: int = 5) -> dict:
             continue
 
     movers.sort(
-        key=lambda item: item["change_percent"],
-        reverse=True,
-    )
+    key=lambda item: item["change_percent"],
+    reverse=True,
+)
 
-    return {
-        "gainers": movers[:limit],
-        "losers": movers[-limit:][::-1],
-    }
+gainers = [
+    stock for stock in movers
+    if stock["change_percent"] > 0
+]
+
+losers = [
+    stock for stock in movers
+    if stock["change_percent"] < 0
+]
+
+return {
+    "gainers": gainers[:limit],
+    "losers": losers[:limit],
+}
