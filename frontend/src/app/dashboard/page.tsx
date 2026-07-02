@@ -1,5 +1,5 @@
 "use client";
-
+import DashboardHome from "@/components/DashboardHome";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -89,42 +89,104 @@ function DashboardContent() {
   }, [ticker]);
 
   if (!ticker) {
-    return (
-      <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-6">
-        <p style={{ color: "var(--text-secondary)" }}>
-          No ticker specified. Go back to{" "}
-          <a href="/" className="underline" style={{ color: "var(--signal-up)" }}>
-            Home
-          </a>{" "}
-          and search for a stock.
-        </p>
-      </main>
-    );
-  }
+  return <DashboardHome />;
+}
 
   const latestRow = history?.data[history.data.length - 1];
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
       {/* Header */}
-      <div className="flex items-baseline justify-between">
-        <div>
-          <h1 className="font-mono-data text-3xl font-bold">{ticker}</h1>
-          {info && <p style={{ color: "var(--text-secondary)" }}>{info.name}</p>}
-          {infoError && (
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              {infoError}
-            </p>
-          )}
-        </div>
-        {latestRow && (
-          <div className="font-mono-data text-right text-2xl font-semibold">
-            ${latestRow.Close.toFixed(2)}
-          </div>
-        )}
+<div
+  className="rounded-2xl border p-8"
+  style={{
+    backgroundColor: "var(--bg-surface)",
+    borderColor: "var(--border-subtle)",
+  }}
+>
+  <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+
+    {/* Left Side */}
+    <div>
+
+      <div className="flex items-center gap-3">
+
+        <h1 className="font-mono-data text-5xl font-bold">
+          {ticker}
+        </h1>
+
+        <span
+          className="rounded-full px-3 py-1 text-xs font-semibold"
+          style={{
+            backgroundColor: "rgba(16,185,129,0.15)",
+            color: "var(--signal-up)",
+          }}
+        >
+          ● LIVE
+        </span>
+
       </div>
 
-      {/* Price chart */}
+      {info && (
+        <p
+          className="mt-3 text-xl"
+          style={{
+            color: "var(--text-secondary)",
+          }}
+        >
+          {info.name}
+        </p>
+      )}
+
+      {infoError && (
+        <p
+          className="mt-2 text-sm"
+          style={{
+            color: "var(--signal-down)",
+          }}
+        >
+          {infoError}
+        </p>
+      )}
+
+    </div>
+
+    {/* Right Side */}
+
+    {latestRow && (
+
+      <div className="text-right">
+
+        <p
+          className="text-sm uppercase tracking-[0.25em]"
+          style={{
+            color: "var(--text-secondary)",
+          }}
+        >
+          Current Price
+        </p>
+
+        <h2 className="font-mono-data mt-2 text-5xl font-bold">
+          ${latestRow.Close.toFixed(2)}
+        </h2>
+
+        <p
+          className="mt-3 text-sm"
+          style={{
+            color: "var(--signal-up)",
+          }}
+        >
+          Live Market Price
+        </p>
+
+      </div>
+
+    )}
+
+  </div>
+</div>
+
+{/* Price chart */}
       <div className="mt-6">
         {historyError ? (
           <ErrorBanner message={historyError} />

@@ -14,10 +14,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const NAV_LINKS = [
-  { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/predict", label: "Prediction" },
-  { href: "/charts", label: "Charts" },
+  { href: "/markets", label: "Markets" },
+  { href: "/predict", label: "Predictions" },
+  { href: "/watchlist", label: "Watchlist" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/news", label: "News" },
 ];
 
@@ -47,9 +48,35 @@ export default function Navbar() {
       style={{ borderColor: "var(--border-subtle)", backgroundColor: "var(--bg-surface)" }}
     >
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
-        <Link href="/" className="font-mono-data text-lg font-semibold tracking-tight">
-          <span style={{ color: "var(--signal-up)" }}>$</span> STOCKPREDICT
-        </Link>
+        <Link
+  href="/dashboard"
+  className="flex items-center gap-3 transition hover:opacity-90"
+>
+  <div
+    className="flex h-10 w-10 items-center justify-center rounded-xl text-lg font-bold"
+    style={{
+      backgroundColor: "rgba(45,212,168,0.12)",
+      color: "var(--signal-up)",
+    }}
+  >
+    📈
+  </div>
+
+  <div>
+    <h1 className="text-lg font-bold">
+      StockPredict AI
+    </h1>
+
+    <p
+      className="text-xs"
+      style={{
+        color: "var(--text-secondary)",
+      }}
+    >
+      Predict Smarter.
+    </p>
+  </div>
+</Link>
 
         <div className="flex items-center gap-1">
           {NAV_LINKS.map((link) => {

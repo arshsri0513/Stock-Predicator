@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
-  title: "Stock Predictor",
+  title: "StockPredict AI",
   description: "AI-powered stock market prediction and analytics",
 };
 
-// This layout wraps EVERY page in the app (App Router convention).
-// Navbar lives here so it's present on every page without each page
-// needing to import and render it individually.
+// This layout wraps every page in the app.
 export default function RootLayout({
   children,
 }: {
@@ -18,8 +17,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Navbar />
-        {children}
+        <AuthProvider>
+          <Navbar />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,10 +1,3 @@
-/**
- * A single labeled metric, e.g. "RMSE: $14.10" or "MAPE: 3.39%".
- * Used across Dashboard, Prediction, and Charts pages -- one consistent
- * way to present a number with context, rather than each page inventing
- * its own layout for "label + value."
- */
-
 interface MetricCardProps {
   label: string;
   value: string | number;
@@ -12,33 +5,82 @@ interface MetricCardProps {
   trend?: "up" | "down" | "neutral";
 }
 
-// Units that read naturally BEFORE the number (currency symbols) vs units
-// that read naturally AFTER the number (percent, etc). Without this
-// distinction, a generic "always append" approach produces "13.95$"
-// instead of "$13.95" -- correct character, wrong position, which is what
-// actually caused the earlier MAPE/RMSE display oddities (not a missing
-// font glyph as initially suspected).
 const PREFIX_UNITS = new Set(["$", "€", "£", "¥"]);
 
-export default function MetricCard({ label, value, unit, trend = "neutral" }: MetricCardProps) {
+export default function MetricCard({
+  label,
+  value,
+  unit,
+  trend = "neutral",
+}: MetricCardProps) {
   const trendColor =
-    trend === "up" ? "var(--signal-up)" : trend === "down" ? "var(--signal-down)" : "var(--text-primary)";
+    trend === "up"
+      ? "var(--signal-up)"
+      : trend === "down"
+      ? "var(--signal-down)"
+      : "var(--text-primary)";
+
+  const trendIcon =
+    trend === "up"
+      ? "▲"
+      : trend === "down"
+      ? "▼"
+      : "●";
 
   const isPrefix = unit && PREFIX_UNITS.has(unit);
 
   return (
     <div
-      className="rounded-lg border p-4"
-      style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}
+      className="group rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+      style={{
+        backgroundColor: "var(--bg-surface)",
+        borderColor: "var(--border-subtle)",
+      }}
     >
-      <div className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>
-        {label}
+      <div className="flex items-center justify-between">
+
+        <p
+          className="text-xs uppercase tracking-[0.18em]"
+          style={{
+            color: "var(--text-secondary)",
+          }}
+        >
+          {label}
+        </p>
+
+        <span
+          className="text-sm font-bold"
+          style={{
+            color: trendColor,
+          }}
+        >
+          {trendIcon}
+        </span>
+
       </div>
-      <div className="font-mono-data mt-1.5 text-2xl font-semibold" style={{ color: trendColor }}>
+
+      <div
+        className="mt-5 font-mono-data text-3xl font-bold transition-transform duration-300 group-hover:scale-105"
+        style={{
+          color: trendColor,
+        }}
+      >
         {isPrefix && unit}
         {value}
         {unit && !isPrefix && unit}
       </div>
+
+      <div
+        className="mt-5 h-1 rounded-full"
+        style={{
+          background:
+            trend === "up"
+              ? "linear-gradient(to right,#10b981,#34d399)"
+              : trend === "down"
+              ? "linear-gradient(to right,#ef4444,#f87171)"
+              : "linear-gradient(to right,#64748b,#94a3b8)",
+        }}
+      />
     </div>
   );
 }
