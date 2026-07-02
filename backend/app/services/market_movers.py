@@ -43,7 +43,8 @@ def get_top_movers(limit: int = 5) -> dict:
                 "price": round(float(latest_close), 2),
                 "change_percent": round(float(pct_change), 2),
             })
-        except Exception:
+        except Exception as e:
+            print(f"{ticker}: {e}")
             # A single ticker failing (delisted, rate-limited, etc.)
             # shouldn't break the whole response -- skip it and continue.
             continue
