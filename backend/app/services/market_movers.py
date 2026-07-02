@@ -130,7 +130,6 @@ def get_top_movers(limit: int = 5) -> dict:
     ]
 
     return {
-    "indices": get_market_indices(),
-    "gainers": gainers[:limit],
-    "losers": losers[:limit],
-}
+        "gainers": gainers[:limit],
+        "losers": losers[:limit],
+    }
