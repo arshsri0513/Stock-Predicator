@@ -25,6 +25,62 @@ WATCHLIST_BASKET = [
 ]
 
 
+def get_quote(symbol: str):
+    """
+    Fetch a single quote from Finnhub.
+    """
+
+    response = requests.get(
+        "https://finnhub.io/api/v1/quote",
+        params={
+            "symbol": symbol,
+            "token": settings.FINNHUB_API_KEY,
+        },
+        timeout=10,
+    )
+
+    response.raise_for_status()
+
+    return response.json()
+
+def get_market_indices():
+    """
+    Fetch major US market indices using Finnhub.
+    """
+
+    indices = {
+        "sp500": "^GSPC",
+        "nasdaq": "^IXIC",
+        "dow": "^DJI",
+        "vix": "^VIX",
+    }
+
+    result = {}
+
+    for name, symbol in indices.items():
+        try:
+            data = get_quote(symbol)
+
+            current = data.get("c")
+            previous = data.get("pc")
+
+            if current is None or previous is None or previous == 0:
+                continue
+
+            result[name] = {
+                "price": round(float(current), 2),
+                "change_percent": round(
+                    ((current - previous) / previous) * 100,
+                    2,
+                ),
+            }
+
+        except Exception as e:
+            print(f"{symbol}: {e}")
+
+    return result
+
+
 def get_top_movers(limit: int = 5) -> dict:
     """
     Fetch market movers using Finnhub quotes.
@@ -34,18 +90,7 @@ def get_top_movers(limit: int = 5) -> dict:
 
     for ticker in WATCHLIST_BASKET:
         try:
-            response = requests.get(
-                "https://finnhub.io/api/v1/quote",
-                params={
-                    "symbol": ticker,
-                    "token": settings.FINNHUB_API_KEY,
-                },
-                timeout=10,
-            )
-
-            response.raise_for_status()
-
-            data = response.json()
+            data = get_quote(ticker)
 
             current = data.get("c")
             previous = data.get("pc")
@@ -85,6 +130,7 @@ def get_top_movers(limit: int = 5) -> dict:
     ]
 
     return {
-        "gainers": gainers[:limit],
-        "losers": losers[:limit],
-    }
+    "indices": get_market_indices(),
+    "gainers": gainers[:limit],
+    "losers": losers[:limit],
+}
