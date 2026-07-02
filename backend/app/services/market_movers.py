@@ -26,6 +26,10 @@ WATCHLIST_BASKET = [
 
 
 def get_top_movers(limit: int = 5) -> dict:
+    """
+    Fetch market movers using Finnhub quotes.
+    """
+
     movers = []
 
     for ticker in WATCHLIST_BASKET:
@@ -46,7 +50,7 @@ def get_top_movers(limit: int = 5) -> dict:
             current = data.get("c")
             previous = data.get("pc")
 
-            if not current or not previous:
+            if current is None or previous is None or previous == 0:
                 continue
 
             change_percent = ((current - previous) / previous) * 100
@@ -54,8 +58,8 @@ def get_top_movers(limit: int = 5) -> dict:
             movers.append(
                 {
                     "ticker": ticker,
-                    "price": round(current, 2),
-                    "change_percent": round(change_percent, 2),
+                    "price": round(float(current), 2),
+                    "change_percent": round(float(change_percent), 2),
                 }
             )
 
@@ -64,21 +68,23 @@ def get_top_movers(limit: int = 5) -> dict:
             continue
 
     movers.sort(
-    key=lambda item: item["change_percent"],
-    reverse=True,
-)
+        key=lambda item: item["change_percent"],
+        reverse=True,
+    )
 
-gainers = [
-    stock for stock in movers
-    if stock["change_percent"] > 0
-]
+    gainers = [
+        stock
+        for stock in movers
+        if stock["change_percent"] > 0
+    ]
 
-losers = [
-    stock for stock in movers
-    if stock["change_percent"] < 0
-]
+    losers = [
+        stock
+        for stock in movers
+        if stock["change_percent"] < 0
+    ]
 
-return {
-    "gainers": gainers[:limit],
-    "losers": losers[:limit],
-}
+    return {
+        "gainers": gainers[:limit],
+        "losers": losers[:limit],
+    }
