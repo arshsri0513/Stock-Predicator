@@ -336,20 +336,21 @@ def fetch_news(ticker: str, limit: int = 10) -> list[dict]:
 
 def fetch_company_info(ticker: str) -> dict:
     """
-    Fetch basic company metadata (name, sector, market cap, etc.).
-    Useful for displaying context alongside charts in the frontend.
+    Fetch basic company metadata.
     """
-    stock = _get_ticker(ticker)
-    info = stock.info
 
-    if not info or "symbol" not in info:
-        raise ValueError(f"Could not retrieve company info for '{ticker}'.")
+    stock = _get_ticker(ticker)
+
+    try:
+        info = stock.info or {}
+    except Exception:
+        info = {}
 
     return {
-        "symbol": info.get("symbol"),
-        "name": info.get("longName"),
-        "sector": info.get("sector"),
-        "industry": info.get("industry"),
+        "symbol": info.get("symbol", ticker.upper()),
+        "name": info.get("longName") or info.get("shortName") or ticker.upper(),
+        "sector": info.get("sector", "Unknown"),
+        "industry": info.get("industry", "Unknown"),
         "market_cap": info.get("marketCap"),
-        "currency": info.get("currency"),
+        "currency": info.get("currency", "USD"),
     }
