@@ -47,7 +47,7 @@ export class ApiError extends Error {
  */
 function getAuthHeaders(): Record<string, string> {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
     if (token) {
       return {
         Authorization: `Bearer ${token}`,
