@@ -233,7 +233,7 @@ export default function ProfilePage() {
                   <th className="px-6 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y" style={{ divideColor: "var(--border-subtle)" }}>
+             <tbody className="divide-y" style={{ borderColor: "var(--border-subtle)" }}>
                 {watchlist.map((item) => (
                   <tr key={item.id} className="hover:bg-opacity-5 transition-colors">
                     <td className="px-6 py-4 font-mono-data font-semibold text-lg" style={{ color: "var(--text-primary)" }}>
