@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     # default; the fallback simply raises a clear error if unset rather
     # than failing silently.
     TWELVE_DATA_API_KEY: str = ""
+    # Finnhub (Markets)
+    FINNHUB_API_KEY: str = ""
 
     # Redis (filled in properly in Phase 13)
     REDIS_URL: str = "redis://localhost:6379/0"
