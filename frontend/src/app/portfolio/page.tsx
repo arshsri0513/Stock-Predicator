@@ -10,6 +10,9 @@ import {
 } from "@/lib/portfolio";
 
 import PortfolioSummary from "@/components/portfolio/PortfolioSummary";
+import PortfolioInsights from "@/components/portfolio/PortfolioInsights";
+import PortfolioAllocationChart from "@/components/portfolio/PortfolioAllocationChart";
+import PortfolioPerformanceChart from "@/components/portfolio/PortfolioPerformanceChart";
 import PortfolioTable from "@/components/portfolio/PortfolioTable";
 import AddHoldingModal from "@/components/portfolio/AddHoldingModal";
 
@@ -71,17 +74,30 @@ export default function PortfolioPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setModalOpen(true)}
-          className="rounded-xl px-5 py-3 font-semibold"
-          style={{
-            backgroundColor: "var(--signal-up)",
-            color: "black",
-          }}
-        >
-          + Add Holding
-        </button>
+        <div className="flex gap-3">
 
+  <button
+    onClick={loadPortfolio}
+    className="rounded-xl border px-5 py-3"
+    style={{
+      borderColor: "var(--border-subtle)",
+    }}
+  >
+    🔄 Refresh
+  </button>
+
+  <button
+    onClick={() => setModalOpen(true)}
+    className="rounded-xl px-5 py-3 font-semibold"
+    style={{
+      backgroundColor: "var(--signal-up)",
+      color: "black",
+    }}
+  >
+    + Add Holding
+  </button>
+
+</div>
       </div>
 
       <div className="mt-8">
@@ -92,21 +108,37 @@ export default function PortfolioPage() {
           gainLoss={gainLoss}
         />
       </div>
-
       <div className="mt-8">
-        <PortfolioTable
-          holdings={holdings}
-          onRemove={async (id) => {
-            try {
-              await removeHolding(id);
-              await loadPortfolio();
-            } catch (err) {
-              console.error(err);
-              alert("Unable to remove holding.");
-            }
-          }}
-        />
-      </div>
+  <PortfolioInsights
+    holdings={holdings}
+  />
+</div>
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-2">
+
+  <PortfolioTable
+    holdings={holdings}
+    onRemove={async (id) => {
+      try {
+        await removeHolding(id);
+        await loadPortfolio();
+      } catch (err) {
+        console.error(err);
+        alert("Unable to remove holding.");
+      }
+    }}
+  />
+
+  <PortfolioAllocationChart
+    holdings={holdings}
+  />
+
+</div>
+<div className="mt-8">
+  <PortfolioPerformanceChart
+    holdings={holdings}
+  />
+</div>
 
       <AddHoldingModal
         open={modalOpen}
@@ -118,12 +150,12 @@ export default function PortfolioPage() {
         ) => {
           try {
             await addHolding({
-              ticker,
-              quantity,
-              purchase_price: purchasePrice,
-            });
+  ticker,
+  quantity,
+  purchase_price: purchasePrice,
+});
 
-            await loadPortfolio();
+await loadPortfolio();
           } catch (err) {
             console.error(err);
             alert("Unable to add holding.");

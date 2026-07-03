@@ -1,4 +1,5 @@
 import { Holding } from "@/lib/portfolio";
+import { formatCurrency } from "@/lib/format";
 
 interface Props {
   holdings: Holding[];
@@ -44,15 +45,36 @@ export default function PortfolioTable({
         <thead>
           <tr
             className="border-b"
-            style={{ borderColor: "var(--border-subtle)" }}
+            style={{
+              borderColor: "var(--border-subtle)",
+            }}
           >
-            <th className="px-4 py-3 text-left">Ticker</th>
-            <th className="px-4 py-3 text-left">Qty</th>
-            <th className="px-4 py-3 text-left">Buy Price</th>
-            <th className="px-4 py-3 text-left">Current</th>
-            <th className="px-4 py-3 text-left">Market Value</th>
-            <th className="px-4 py-3 text-left">Gain/Loss</th>
-            <th className="px-4 py-3 text-left"></th>
+            <th className="px-4 py-3 text-left">
+              Ticker
+            </th>
+
+            <th className="px-4 py-3 text-center">
+              Qty
+            </th>
+
+            <th className="px-4 py-3 text-right">
+              Buy Price
+            </th>
+
+            <th className="px-4 py-3 text-right">
+              Current
+            </th>
+
+            <th className="px-4 py-3 text-right">
+              Market Value
+            </th>
+
+            <th className="px-4 py-3 text-right">
+              Gain / Loss
+            </th>
+
+            <th className="px-4 py-3 text-center">
+            </th>
           </tr>
         </thead>
 
@@ -61,44 +83,52 @@ export default function PortfolioTable({
             <tr
               key={holding.id}
               className="border-b last:border-none"
-              style={{ borderColor: "var(--border-subtle)" }}
+              style={{
+                borderColor: "var(--border-subtle)",
+              }}
             >
               <td className="px-4 py-4 font-semibold">
                 {holding.ticker}
               </td>
 
-              <td className="px-4 py-4">
+              <td className="px-4 py-4 text-center">
                 {holding.quantity}
               </td>
 
-              <td className="px-4 py-4">
-                ${holding.purchase_price.toFixed(2)}
+              <td className="whitespace-nowrap px-4 py-4 text-right">
+                {formatCurrency(holding.purchase_price)}
               </td>
 
-              <td className="px-4 py-4">
-                ${holding.current_price?.toFixed(2) ?? "-"}
+              <td className="whitespace-nowrap px-4 py-4 text-right">
+                {holding.current_price != null
+                  ? formatCurrency(holding.current_price)
+                  : "-"}
               </td>
 
-              <td className="px-4 py-4">
-                ${holding.market_value?.toFixed(2) ?? "-"}
+              <td className="whitespace-nowrap px-4 py-4 text-right">
+                {holding.market_value != null
+                  ? formatCurrency(holding.market_value)
+                  : "-"}
               </td>
 
               <td
-                className={`px-4 py-4 font-semibold ${
+                className={`whitespace-nowrap px-4 py-4 text-right font-semibold ${
                   (holding.gain_loss ?? 0) >= 0
                     ? "text-green-400"
                     : "text-red-400"
                 }`}
               >
                 {holding.gain_loss != null
-                  ? `${holding.gain_loss >= 0 ? "+" : ""}$${holding.gain_loss.toFixed(2)}`
+                  ? `${holding.gain_loss >= 0 ? "+" : "-"}${formatCurrency(
+                      Math.abs(holding.gain_loss)
+                    )}`
                   : "-"}
               </td>
 
-              <td className="px-4 py-4">
+              <td className="px-4 py-4 text-center">
                 <button
                   onClick={() => onRemove(holding.id)}
-                  className="rounded-lg border border-red-500 px-3 py-2 text-red-400 transition hover:bg-red-500 hover:text-white"
+                  className="rounded-lg border border-red-500 px-3 py-1.5 text-sm text-red-400 transition hover:bg-red-500 hover:text-white"
                 >
                   Remove
                 </button>

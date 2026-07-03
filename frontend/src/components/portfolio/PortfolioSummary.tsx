@@ -1,3 +1,5 @@
+import { formatCurrency } from "@/lib/format";
+
 interface Props {
   holdings: number;
   invested: number;
@@ -21,15 +23,17 @@ export default function PortfolioSummary({
     },
     {
       title: "Invested",
-      value: `$${invested.toFixed(2)}`,
+      value: formatCurrency(invested),
     },
     {
       title: "Market Value",
-      value: `$${marketValue.toFixed(2)}`,
+      value: formatCurrency(marketValue),
     },
     {
       title: "Profit / Loss",
-      value: `${gainLoss >= 0 ? "+" : ""}$${gainLoss.toFixed(2)} (${gainPercent.toFixed(2)}%)`,
+      value: `${gainLoss >= 0 ? "+" : "-"}${formatCurrency(
+        Math.abs(gainLoss)
+      )} (${gainPercent.toFixed(2)}%)`,
     },
   ];
 
