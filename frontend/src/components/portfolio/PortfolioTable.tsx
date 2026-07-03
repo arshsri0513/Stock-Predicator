@@ -3,11 +3,13 @@ import { formatCurrency } from "@/lib/format";
 
 interface Props {
   holdings: Holding[];
+  onEdit: (holding: Holding) => void;
   onRemove: (id: string) => void;
 }
 
 export default function PortfolioTable({
   holdings,
+  onEdit,
   onRemove,
 }: Props) {
   if (holdings.length === 0) {
@@ -126,13 +128,22 @@ export default function PortfolioTable({
               </td>
 
               <td className="px-4 py-4 text-center">
-                <button
-                  onClick={() => onRemove(holding.id)}
-                  className="rounded-lg border border-red-500 px-3 py-1.5 text-sm text-red-400 transition hover:bg-red-500 hover:text-white"
-                >
-                  Remove
-                </button>
-              </td>
+  <div className="flex justify-center gap-2">
+    <button
+      onClick={() => onEdit(holding)}
+      className="rounded-lg border border-blue-500 px-3 py-1.5 text-sm text-blue-400 transition hover:bg-blue-500 hover:text-white"
+    >
+      Edit
+    </button>
+
+    <button
+      onClick={() => onRemove(holding.id)}
+      className="rounded-lg border border-red-500 px-3 py-1.5 text-sm text-red-400 transition hover:bg-red-500 hover:text-white"
+    >
+      Remove
+    </button>
+  </div>
+</td>
             </tr>
           ))}
         </tbody>

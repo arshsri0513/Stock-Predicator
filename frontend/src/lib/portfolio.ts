@@ -19,6 +19,11 @@ export interface AddHoldingRequest {
   purchase_price: number;
 }
 
+export interface UpdateHoldingRequest {
+  quantity: number;
+  purchase_price: number;
+}
+
 export async function getPortfolio(): Promise<Holding[]> {
   return apiGet("/portfolio");
 }
@@ -47,4 +52,29 @@ export async function removeHolding(
   if (!response.ok) {
     throw new Error("Unable to remove holding.");
   }
+}
+
+export async function updateHolding(
+  holdingId: string,
+  data: UpdateHoldingRequest
+): Promise<Holding> {
+  const token = localStorage.getItem("access_token");
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/portfolio/${holdingId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Unable to update holding.");
+  }
+
+  return response.json();
 }

@@ -11,6 +11,10 @@ class HoldingAddRequest(BaseModel):
     quantity: float = Field(..., gt=0)
     purchase_price: float = Field(..., gt=0)
 
+class HoldingUpdateRequest(BaseModel):
+    quantity: float = Field(..., gt=0)
+    purchase_price: float = Field(..., gt=0)
+
 
 class HoldingResponse(BaseModel):
     id: str

@@ -7,6 +7,7 @@ import {
   getPortfolio,
   addHolding,
   removeHolding,
+  updateHolding,
 } from "@/lib/portfolio";
 
 import PortfolioSummary from "@/components/portfolio/PortfolioSummary";
@@ -15,10 +16,13 @@ import PortfolioAllocationChart from "@/components/portfolio/PortfolioAllocation
 import PortfolioPerformanceChart from "@/components/portfolio/PortfolioPerformanceChart";
 import PortfolioTable from "@/components/portfolio/PortfolioTable";
 import AddHoldingModal from "@/components/portfolio/AddHoldingModal";
+import EditHoldingModal from "@/components/portfolio/EditHoldingModal";
 
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null); 
 
   async function loadPortfolio() {
     try {
@@ -116,9 +120,13 @@ export default function PortfolioPage() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-2">
 
-  <PortfolioTable
-    holdings={holdings}
-    onRemove={async (id) => {
+ <PortfolioTable
+  holdings={holdings}
+  onEdit={(holding) => {
+    setSelectedHolding(holding);
+    setEditOpen(true);
+  }}
+  onRemove={async (id) => {
       try {
         await removeHolding(id);
         await loadPortfolio();
@@ -149,12 +157,13 @@ export default function PortfolioPage() {
           purchasePrice
         ) => {
           try {
-            await addHolding({
+           await addHolding({
   ticker,
   quantity,
   purchase_price: purchasePrice,
 });
 
+setModalOpen(false);
 await loadPortfolio();
           } catch (err) {
             console.error(err);
@@ -162,7 +171,31 @@ await loadPortfolio();
           }
         }}
       />
+<EditHoldingModal
+  open={editOpen}
+  holding={selectedHolding}
+  onClose={() => {
+    setEditOpen(false);
+    setSelectedHolding(null);
+  }}
+  onSave={async (quantity, purchasePrice) => {
+    if (!selectedHolding) return;
 
+    try {
+      await updateHolding(selectedHolding.id, {
+        quantity,
+        purchase_price: purchasePrice,
+      });
+
+      setEditOpen(false);
+      setSelectedHolding(null);
+      await loadPortfolio();
+    } catch (err) {
+      console.error(err);
+      alert("Unable to update holding.");
+    }
+  }}
+/>
     </main>
   );
 }

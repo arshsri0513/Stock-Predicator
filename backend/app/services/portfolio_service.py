@@ -78,6 +78,36 @@ def remove_holding(db: Session, user_id: str, holding_id: str) -> bool:
     db.commit()
     return True
 
+def update_holding(
+    db: Session,
+    user_id: str,
+    holding_id: str,
+    quantity: float,
+    purchase_price: float,
+) -> PortfolioHolding | None:
+    """
+    Update an existing portfolio holding.
+    """
+
+    holding = (
+        db.query(PortfolioHolding)
+        .filter(
+            PortfolioHolding.id == holding_id,
+            PortfolioHolding.user_id == user_id,
+        )
+        .first()
+    )
+
+    if holding is None:
+        return None
+
+    holding.quantity = quantity
+    holding.purchase_price = purchase_price
+
+    db.commit()
+    db.refresh(holding)
+
+    return holding
 
 def get_portfolio_with_gains(db: Session, user_id: str) -> list[dict]:
     """

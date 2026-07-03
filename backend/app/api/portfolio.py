@@ -10,8 +10,17 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.auth import get_current_user
 from app.models.user import User
-from app.schemas.portfolio_schemas import HoldingAddRequest, HoldingResponse
-from app.services.portfolio_service import add_holding, remove_holding, get_portfolio_with_gains
+from app.schemas.portfolio_schemas import (
+    HoldingAddRequest,
+    HoldingUpdateRequest,
+    HoldingResponse,
+)
+from app.services.portfolio_service import (
+    add_holding,
+    update_holding,
+    remove_holding,
+    get_portfolio_with_gains,
+)
 
 router = APIRouter()
 
@@ -46,6 +55,35 @@ def add_portfolio_holding(
         purchased_at=holding.purchased_at,
     )
 
+@router.put("/{holding_id}", response_model=HoldingResponse)
+def update_portfolio_holding(
+    holding_id: str,
+    request: HoldingUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update quantity and purchase price of an existing holding.
+    """
+
+    holding = update_holding(
+        db=db,
+        user_id=str(current_user.id),
+        holding_id=holding_id,
+        quantity=request.quantity,
+        purchase_price=request.purchase_price,
+    )
+
+    if holding is None:
+        raise HTTPException(status_code=404, detail="Holding not found.")
+
+    return HoldingResponse(
+        id=str(holding.id),
+        ticker=holding.stock.ticker,
+        quantity=holding.quantity,
+        purchase_price=holding.purchase_price,
+        purchased_at=holding.purchased_at,
+    )
 
 @router.delete("/{holding_id}", status_code=204)
 def remove_portfolio_holding(
