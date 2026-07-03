@@ -12,24 +12,55 @@ from app.services.watchlist_service import get_or_create_stock
 from app.services.stock_data import fetch_recent_data
 
 
-def add_holding(db: Session, user_id: str, ticker: str, quantity: float, purchase_price: float) -> PortfolioHolding:
+def add_holding(
+    db: Session,
+    user_id: str,
+    ticker: str,
+    quantity: float,
+    purchase_price: float,
+) -> PortfolioHolding:
     """
-    Record a new purchase. Unlike watchlist (which treats duplicates as a
-    no-op), each holding is its own row -- buying the same stock twice at
-    different prices/times are two genuinely different events worth
-    tracking separately (e.g. for accurate average-cost calculations
-    later), not something to silently merge.
+    Add a holding. If the user already owns the ticker,
+    merge it by updating quantity and average purchase price.
     """
+
     stock = get_or_create_stock(db, ticker)
+
+    existing = (
+        db.query(PortfolioHolding)
+        .filter(
+            PortfolioHolding.user_id == user_id,
+            PortfolioHolding.stock_id == stock.id,
+        )
+        .first()
+    )
+
+    if existing:
+        total_quantity = existing.quantity + quantity
+
+        average_price = (
+            (existing.quantity * existing.purchase_price)
+            + (quantity * purchase_price)
+        ) / total_quantity
+
+        existing.quantity = total_quantity
+        existing.purchase_price = average_price
+
+        db.commit()
+        db.refresh(existing)
+        return existing
+
     holding = PortfolioHolding(
         user_id=user_id,
         stock_id=stock.id,
         quantity=quantity,
         purchase_price=purchase_price,
     )
+
     db.add(holding)
     db.commit()
     db.refresh(holding)
+
     return holding
 
 
