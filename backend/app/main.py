@@ -20,6 +20,7 @@ from app.core.limiter import limiter
 from app.api import stocks, models, news, auth, watchlist, market, portfolio, alerts, admin
 from app.core.database import engine, Base
 import app.models
+from app.api import predictions
 
 setup_logging()
 logger = get_logger(__name__)
@@ -67,7 +68,11 @@ app.include_router(market.router, prefix="/market/movers", tags=["market"])
 app.include_router(portfolio.router, prefix="/portfolio", tags=["portfolio"])
 app.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
-
+app.include_router(
+    predictions.router,
+    prefix="/predictions",
+    tags=["Predictions"],
+)
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):

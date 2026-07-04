@@ -1,7 +1,7 @@
 """
 Request/response schemas for price alert endpoints.
 """
-
+from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel, Field
 
@@ -21,6 +21,8 @@ class AlertResponse(BaseModel):
     direction: str
     notify_email: str | None
     telegram_chat_id: str | None
+    is_active: str
+    created_at: datetime
 
 
 class AlertCheckResult(BaseModel):

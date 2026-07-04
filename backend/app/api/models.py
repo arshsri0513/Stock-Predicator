@@ -5,7 +5,10 @@ Machine learning API routes: /models/train, /models/{ticker}/predict,
 Same thin-route pattern as app/api/stocks.py — HTTP concerns only, all real
 logic delegated to app.ml.dataset and app.ml.train.
 """
-
+from app.services.model_registry import record_trained_model
+from app.api.auth import get_current_user
+from app.models.user import User
+from app.services.prediction_service import save_prediction
 from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 
@@ -81,7 +84,12 @@ def train(train_request: TrainRequest, request: Request, db: Session = Depends(g
 
 
 @router.get("/{ticker}/predict", response_model=PredictResponse)
-def predict(ticker: str, model_type: str = "random_forest"):
+def predict(
+    ticker: str,
+    model_type: str = "random_forest",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Generate a prediction for the next trading day's closing price, using
     a previously trained model. Requires /models/train to have been called
@@ -102,17 +110,26 @@ def predict(ticker: str, model_type: str = "random_forest"):
         dataset = build_ml_dataset(ticker, period="6mo")
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-
     X, _ = split_features_target(dataset)
-    latest_features = X.iloc[[-1]]  # most recent row, kept as a DataFrame (not Series)
-    prediction = model.predict(latest_features)[0]
+    latest_features = X.iloc[[-1]]
+
+    prediction = round(float(model.predict(latest_features)[0]), 2)
+
+    save_prediction(
+        db=db,
+        user_id=str(current_user.id),
+        ticker=ticker,
+        model_type=model_type,
+        predicted_close=prediction,
+       based_on_date=str(X.index[-1].date()),
+    )
 
     return PredictResponse(
-        ticker=ticker.upper(),
-        model_type=model_type,
-        predicted_close=round(float(prediction), 2),
-        based_on_date=str(X.index[-1].date()),
-    )
+       ticker=ticker.upper(),
+       model_type=model_type,
+       predicted_close=prediction,
+       based_on_date=str(X.index[-1].date()),
+)
 
 
 @router.post("/predict-multi", response_model=list[MultiPredictResult])

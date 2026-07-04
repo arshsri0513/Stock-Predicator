@@ -19,6 +19,7 @@ const NAV_LINKS = [
   { href: "/predict", label: "Predictions" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/portfolio", label: "Portfolio" },
+  { href: "/alerts", label: "Alerts" },  
   { href: "/news", label: "News" },
 ];
 
@@ -103,6 +104,7 @@ export default function Navbar() {
                   color: pathname === "/profile" ? "var(--signal-up)" : "var(--text-secondary)",
                 }}
               >
+          
                 Profile
               </Link>
               <button

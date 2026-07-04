@@ -83,3 +83,37 @@ def check_and_trigger_alert(db: Session, alert: PriceAlert) -> dict:
         "email_sent": email_sent,
         "telegram_sent": telegram_sent,
     }
+
+def get_user_alerts(db: Session, user_id: str) -> list[PriceAlert]:
+    """
+    Return every alert belonging to the authenticated user.
+    """
+    return (
+        db.query(PriceAlert)
+        .filter(PriceAlert.user_id == user_id)
+        .all()
+    )
+def delete_alert(
+    db: Session,
+    user_id: str,
+    alert_id: str,
+) -> bool:
+    """
+    Delete one alert belonging to the authenticated user.
+    """
+    alert = (
+        db.query(PriceAlert)
+        .filter(
+            PriceAlert.id == alert_id,
+            PriceAlert.user_id == user_id,
+        )
+        .first()
+    )
+
+    if alert is None:
+        return False
+
+    db.delete(alert)
+    db.commit()
+
+    return True

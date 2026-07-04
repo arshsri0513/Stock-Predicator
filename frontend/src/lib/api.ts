@@ -252,3 +252,59 @@ export async function removeFromWatchlist(
 ): Promise<void> {
   return apiDelete(`/watchlist/${ticker}`);
 }
+// ---------------- Predictions ----------------
+
+export interface PredictionHistoryItem {
+  id: string;
+  predicted_close: number;
+  based_on_date: string;
+  created_at: string;
+  stock_id: string;
+  model_id: string;
+}
+
+export async function getPredictionHistory(): Promise<PredictionHistoryItem[]> {
+  return apiGet("/predictions");
+}
+
+export interface Alert {
+  id: string;
+  ticker: string;
+  threshold_price: number;
+  direction: string;
+  notify_email?: string | null;
+  telegram_chat_id?: string | null;
+  is_active: string;
+  created_at: string;
+}
+
+export interface CreateAlertRequest {
+  ticker: string;
+  threshold_price: number;
+  direction: "above" | "below";
+  notify_email?: string;
+  telegram_chat_id?: string;
+}
+// ---------------- Alerts ----------------
+
+export async function getAlerts(): Promise<Alert[]> {
+  return apiGet("/alerts");
+}
+
+export async function createAlert(
+  data: CreateAlertRequest
+): Promise<Alert> {
+  return apiPost("/alerts", data);
+}
+
+export async function deleteAlert(
+  alertId: string
+): Promise<void> {
+  return apiDelete(`/alerts/${alertId}`);
+}
+
+export async function checkAlert(
+  alertId: string
+) {
+  return apiPost(`/alerts/${alertId}/check`, {});
+}

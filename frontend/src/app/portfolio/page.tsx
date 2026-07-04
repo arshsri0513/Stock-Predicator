@@ -25,8 +25,10 @@ export default function PortfolioPage() {
   const [selectedHolding, setSelectedHolding] = useState<Holding | null>(null); 
 
   async function loadPortfolio() {
+      console.log("🔄 Refresh button clicked"); 
     try {
       const data = await getPortfolio();
+      console.log("Portfolio data:", data); 
       setHoldings(data);
     } catch (err) {
       console.error(err);

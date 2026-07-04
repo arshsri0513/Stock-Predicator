@@ -1,6 +1,50 @@
 import SearchBar from "@/components/SearchBar";
+import { useEffect, useState } from "react";
+import {
+  getWatchlist,
+  getPredictionHistory,
+  getAlerts,
+} from "@/lib/api";
+import { getPortfolio } from "@/lib/portfolio";
 
 export default function DashboardHome() {
+const [watchlistCount, setWatchlistCount] = useState(0);
+const [portfolioValue, setPortfolioValue] = useState(0);
+const [predictionCount, setPredictionCount] = useState(0);
+const [alertCount, setAlertCount] = useState(0);
+useEffect(() => {
+  async function loadDashboard() {
+  try {
+    const watchlist = await getWatchlist();
+    console.log("WATCHLIST:", watchlist);
+    setWatchlistCount(watchlist.length);
+
+    const predictions = await getPredictionHistory();
+    console.log("PREDICTIONS:", predictions);
+    setPredictionCount(predictions.length);
+
+    const portfolio = await getPortfolio();
+    console.log("PORTFOLIO:", portfolio);
+
+    const alerts = await getAlerts();
+    console.log("ALERTS:", alerts);
+    setAlertCount(alerts.length);
+
+    const total = portfolio.reduce(
+      (sum, holding) => sum + (holding.market_value ?? 0),
+      0
+    );
+
+    console.log("TOTAL PORTFOLIO VALUE:", total);
+
+    setPortfolioValue(total);
+  } catch (err) {
+    console.error("Dashboard Error:", err);
+  }
+}
+
+  loadDashboard();
+}, []);
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
 
@@ -35,27 +79,27 @@ export default function DashboardHome() {
       <div className="mt-8 grid gap-6 md:grid-cols-4">
 
         {[
-          {
-            title: "Watchlist",
-            value: "0",
-            desc: "Saved Stocks",
-          },
-          {
-            title: "Predictions",
-            value: "0",
-            desc: "Completed",
-          },
-          {
-            title: "Portfolio",
-            value: "$0",
-            desc: "Coming Soon",
-          },
-          {
-            title: "Alerts",
-            value: "0",
-            desc: "Active",
-          },
-        ].map((item) => (
+  {
+    title: "Watchlist",
+    value: watchlistCount.toString(),
+    desc: "Saved Stocks",
+  },
+  {
+    title: "Predictions",
+    value: predictionCount.toString(),
+    desc: "Completed",
+  },
+  {
+    title: "Portfolio",
+    value: `$${portfolioValue.toFixed(2)}`,
+    desc: "Current Value",
+  },
+  {
+  title: "Alerts",
+  value: alertCount.toString(),
+  desc: "Active",
+  },
+].map((item) => (
           <div
             key={item.title}
             className="rounded-2xl border p-6"

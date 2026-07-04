@@ -11,7 +11,12 @@ from app.api.auth import get_current_user
 from app.models.user import User
 from app.models.financial import PriceAlert
 from app.schemas.alert_schemas import AlertCreateRequest, AlertResponse, AlertCheckResult
-from app.services.alert_service import create_alert, check_and_trigger_alert
+from app.services.alert_service import (
+    create_alert,
+    check_and_trigger_alert,
+    get_user_alerts,
+    delete_alert,
+)
 
 router = APIRouter()
 
@@ -33,14 +38,36 @@ def create_price_alert(
         request.direction, request.notify_email, request.telegram_chat_id,
     )
     return AlertResponse(
-        id=str(alert.id),
-        ticker=request.ticker.upper(),
-        threshold_price=alert.threshold_price,
-        direction=alert.direction,
-        notify_email=alert.notify_email,
-        telegram_chat_id=alert.telegram_chat_id,
-    )
+    id=str(alert.id),
+    ticker=request.ticker.upper(),
+    threshold_price=alert.threshold_price,
+    direction=alert.direction,
+    notify_email=alert.notify_email,
+    telegram_chat_id=alert.telegram_chat_id,
+    is_active=alert.is_active,
+    created_at=alert.created_at,
+)
 
+@router.get("", response_model=list[AlertResponse])
+def list_alerts(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    alerts = get_user_alerts(db, str(current_user.id))
+
+    return [
+        AlertResponse(
+            id=str(alert.id),
+            ticker=alert.stock.ticker,
+            threshold_price=alert.threshold_price,
+            direction=alert.direction,
+            notify_email=alert.notify_email,
+            telegram_chat_id=alert.telegram_chat_id,
+            is_active=alert.is_active,
+            created_at=alert.created_at,
+        )
+        for alert in alerts
+    ]
 
 @router.post("/{alert_id}/check", response_model=AlertCheckResult)
 def check_price_alert(
@@ -71,3 +98,23 @@ def check_price_alert(
         raise HTTPException(status_code=404, detail=str(e))
 
     return AlertCheckResult(**result)
+
+@router.delete("/{alert_id}", status_code=204)
+def remove_alert(
+    alert_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    removed = delete_alert(
+        db,
+        str(current_user.id),
+        alert_id,
+    )
+
+    if not removed:
+        raise HTTPException(
+            status_code=404,
+            detail="Alert not found.",
+        )
+
+    return None
