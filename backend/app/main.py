@@ -118,3 +118,7 @@ def health_check():
         "environment": settings.ENVIRONMENT,
     }
 
+@app.get("/test")
+def test():
+    return {"message": "Render is using latest code"}
+
