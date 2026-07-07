@@ -1,3 +1,4 @@
+"use client";
 import SearchBar from "@/components/SearchBar";
 import { useEffect, useState } from "react";
 import {
@@ -6,6 +7,7 @@ import {
   getAlerts,
 } from "@/lib/api";
 import { getPortfolio } from "@/lib/portfolio";
+import Link from "next/link";
 
 export default function DashboardHome() {
 const [watchlistCount, setWatchlistCount] = useState(0);
@@ -45,6 +47,40 @@ useEffect(() => {
 
   loadDashboard();
 }, []);
+
+const quickAccess = [
+  {
+    title: "⭐ My Watchlist",
+    description: "View and manage your saved stocks.",
+    href: "/watchlist",
+  },
+  {
+    title: "📊 Prediction History",
+    description: "Review all previous predictions.",
+    href: "/predict",
+  },
+  {
+    title: "📈 Portfolio Tracker",
+    description: "Manage your investments and holdings.",
+    href: "/portfolio",
+  },
+  {
+    title: "🔔 Price Alerts",
+    description: "Create and manage stock alerts.",
+    href: "/alerts",
+  },
+  {
+    title: "📰 Market News",
+    description: "Stay updated with the latest news.",
+    href: "/news",
+  },
+  {
+    title: "⚙️ Settings",
+    description: "Customize your application.",
+    href: "/settings",
+  },
+];
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
 
@@ -76,7 +112,7 @@ useEffect(() => {
 
       {/* Quick Stats */}
 
-      <div className="mt-8 grid gap-6 md:grid-cols-4">
+     <div className="mt-8 grid gap-6 md:grid-cols-4">
 
         {[
   {
@@ -132,45 +168,55 @@ useEffect(() => {
           </div>
         ))}
 
-      </div>
+        </div>   
 
-      {/* Coming Soon */}
+    <div
+  className="mt-8 rounded-2xl border p-8"
+  style={{
+    backgroundColor: "var(--bg-surface)",
+    borderColor: "var(--border-subtle)",
+  }}
+>
+  <h2 className="text-2xl font-bold">
+    🚀 Quick Access
+  </h2>
 
-      <div
-        className="mt-8 rounded-2xl border p-8"
+  <p
+    className="mt-2"
+    style={{ color: "var(--text-secondary)" }}
+  >
+    Quickly jump to the features you use most.
+  </p>
+
+  <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+
+    {quickAccess.map((item) => (
+      <Link
+        key={item.href}
+        href={item.href}
+        className="rounded-xl border p-5 transition-all hover:scale-[1.02] hover:shadow-lg"
         style={{
-          backgroundColor: "var(--bg-surface)",
           borderColor: "var(--border-subtle)",
+          backgroundColor: "var(--bg-base)",
         }}
       >
-        <h2 className="text-2xl font-bold">
-          🚀 Coming Soon
-        </h2>
+        <h3 className="text-lg font-semibold">
+          {item.title}
+        </h3>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <p
+          className="mt-3 text-sm"
+          style={{
+            color: "var(--text-secondary)",
+          }}
+        >
+          {item.description}
+        </p>
+      </Link>
+    ))}
 
-          {[
-            "⭐ Personal Watchlist",
-            "📊 Prediction History",
-            "📈 Portfolio Tracker",
-            "🔔 Price Alerts",
-            "🤖 AI Investment Assistant",
-            "📄 PDF Reports",
-          ].map((feature) => (
-            <div
-              key={feature}
-              className="rounded-xl border px-5 py-4"
-              style={{
-                borderColor: "var(--border-subtle)",
-              }}
-            >
-              {feature}
-            </div>
-          ))}
-
-        </div>
-      </div>
-
+  </div>
+</div>   
     </main>
   );
 }

@@ -28,33 +28,24 @@ NON_FEATURE_COLUMNS = ["Dividends", "Stock Splits"]
 
 
 def build_ml_dataset(ticker: str, period: str = "5y", horizon: int = 1) -> pd.DataFrame:
-    """
-    Fetch, clean, and fully engineer a ticker's data into a model-ready
-    DataFrame, indexed by Date, with a 'target' column at the end.
 
-    Args:
-        ticker: stock symbol, e.g. "AAPL"
-        period: how much history to fetch — 5y default, since more history
-                generally helps models learn more robust patterns (though we
-                trade this off against the stock's actual listing history
-                and how much the company's underlying behavior may have
-                changed over a very long window).
-        horizon: how many days ahead to predict (1 = tomorrow's close)
-
-    Returns:
-        A DataFrame ready to be split into X (features) and y (target).
-    """
     raw = fetch_historical_data(ticker, period=period, interval="1d")
+
+    print("\n========== RAW DATA ==========")
+    print("Latest raw date:", raw.index[-1])
+    print(raw.tail())
+
     cleaned = clean_ohlcv(raw)
     with_indicators = add_all_indicators(cleaned)
     with_lags = add_basic_features(with_indicators)
     with_target = add_target_column(with_lags, horizon=horizon)
 
-    # Drop warm-up rows (indicators/lags need history) and the final
-    # `horizon` rows (no future price exists yet to serve as their target).
     final = with_target.dropna()
 
-    # Drop non-feature columns now that cleaning/feature steps are done.
+    print("\n========== FINAL DATASET ==========")
+    print("Latest final date:", final.index[-1])
+    print(final.tail())
+
     final = final.drop(columns=[c for c in NON_FEATURE_COLUMNS if c in final.columns])
 
     return final

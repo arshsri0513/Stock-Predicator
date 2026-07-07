@@ -5,7 +5,6 @@ Machine learning API routes: /models/train, /models/{ticker}/predict,
 Same thin-route pattern as app/api/stocks.py — HTTP concerns only, all real
 logic delegated to app.ml.dataset and app.ml.train.
 """
-from app.services.model_registry import record_trained_model
 from app.api.auth import get_current_user
 from app.models.user import User
 from app.services.prediction_service import save_prediction
@@ -18,7 +17,16 @@ from app.schemas.ml_schemas import (
     TrainRequest, TrainResponse, PredictResponse, EvaluateResponse,
     TrainDLRequest, TrainDLResponse, MultiPredictRequest, MultiPredictResult,
 )
-from app.ml.dataset import build_ml_dataset, split_features_target, chronological_train_test_split
+from app.ml.dataset import (
+    build_ml_dataset,
+    split_features_target,
+    chronological_train_test_split,
+)
+
+from app.services.stock_data import fetch_historical_data
+from app.services.data_cleaning import clean_ohlcv
+from app.services.feature_engineering import add_basic_features
+
 from app.ml.train import train_model, evaluate_model, save_model, load_model
 from app.ml.sequence_dataset import prepare_sequence_dataset
 from app.ml.train_dl import train_dl_model, evaluate_dl_model, save_dl_model

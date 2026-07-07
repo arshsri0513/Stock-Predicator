@@ -19,7 +19,8 @@ const NAV_LINKS = [
   { href: "/predict", label: "Predictions" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/portfolio", label: "Portfolio" },
-  { href: "/alerts", label: "Alerts" },  
+  { href: "/alerts", label: "Alerts" },
+  { href: "/settings", label: "Settings" }, // 👈 Add this line
   { href: "/news", label: "News" },
 ];
 
@@ -29,7 +30,7 @@ export default function Navbar() {
 
   useEffect(() => {
     function checkAuth() {
-      setIsLoggedIn(!!localStorage.getItem("token"));
+     setIsLoggedIn(!!localStorage.getItem("access_token"));
     }
 
     checkAuth();
@@ -38,7 +39,7 @@ export default function Navbar() {
   }, []);
 
   function handleLogout() {
-    localStorage.removeItem("token");
+    localStorage.removeItem("access_token");
     setIsLoggedIn(false);
     window.dispatchEvent(new Event("auth-change"));
   }
@@ -79,54 +80,74 @@ export default function Navbar() {
   </div>
 </Link>
 
-        <div className="flex items-center gap-1">
-          {NAV_LINKS.map((link) => {
-            const isActive = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="rounded px-3 py-1.5 text-sm font-medium transition-colors"
-                style={{
-                  color: isActive ? "var(--signal-up)" : "var(--text-secondary)",
-                }}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-          {isLoggedIn ? (
-            <>
-              <Link
-                href="/profile"
-                className="rounded px-3 py-1.5 text-sm font-medium transition-colors"
-                style={{
-                  color: pathname === "/profile" ? "var(--signal-up)" : "var(--text-secondary)",
-                }}
-              >
-          
-                Profile
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="rounded px-3 py-1.5 text-sm font-medium transition-colors hover:text-white"
-                style={{ color: "var(--signal-down)" }}
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <Link
-              href="/login"
-              className="rounded px-3 py-1.5 text-sm font-medium transition-colors"
-              style={{
-                color: pathname === "/login" ? "var(--signal-up)" : "var(--text-secondary)",
-              }}
-            >
-              Login
-            </Link>
-          )}
-        </div>
+       {/* Center Navigation */}
+<div className="flex items-center gap-2">
+
+  {NAV_LINKS.map((link) => {
+    const isActive = pathname === link.href;
+
+    return (
+      <Link
+        key={link.href}
+        href={link.href}
+        className="rounded px-3 py-2 text-sm font-medium transition-colors"
+        style={{
+          color: isActive
+            ? "var(--signal-up)"
+            : "var(--text-secondary)",
+        }}
+      >
+        {link.label}
+      </Link>
+    );
+  })}
+
+</div>
+
+{/* Right Side */}
+<div className="flex items-center gap-4">
+
+  {isLoggedIn ? (
+    <>
+      <Link
+        href="/profile"
+        className="rounded px-3 py-2 text-sm font-medium transition-colors"
+        style={{
+          color:
+            pathname === "/profile"
+              ? "var(--signal-up)"
+              : "var(--text-secondary)",
+        }}
+      >
+        Profile
+      </Link>
+
+      <button
+        onClick={handleLogout}
+        className="rounded px-3 py-2 text-sm font-medium transition-colors"
+        style={{
+          color: "var(--signal-down)",
+        }}
+      >
+        Logout
+      </button>
+    </>
+  ) : (
+    <Link
+      href="/login"
+      className="rounded px-3 py-2 text-sm font-medium transition-colors"
+      style={{
+        color:
+          pathname === "/login"
+            ? "var(--signal-up)"
+            : "var(--text-secondary)",
+      }}
+    >
+      Login
+    </Link>
+  )}
+
+</div>
       </div>
     </nav>
   );

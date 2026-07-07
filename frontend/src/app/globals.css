@@ -4,24 +4,51 @@
 
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
+/* ---------------- LIGHT THEME ---------------- */
+
 :root {
+  --bg-base: #f5f7fb;
+  --bg-surface: #ffffff;
+  --bg-elevated: #eef2f7;
+
+  --border-subtle: #d8dee9;
+
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+
+  --signal-up: #16a34a;
+  --signal-down: #dc2626;
+
+  --accent: #2563eb;
+}
+
+/* ---------------- DARK THEME ---------------- */
+
+.dark {
   --bg-base: #16181d;
   --bg-surface: #1d2026;
   --bg-elevated: #242832;
+
   --border-subtle: #2e323c;
+
   --text-primary: #e8e6e1;
   --text-secondary: #8b8d94;
+
   --signal-up: #2dd4a8;
   --signal-down: #e0654f;
+
   --accent: #5b8def;
 }
 
 body {
   background-color: var(--bg-base);
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 .font-mono-data {
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-family: "JetBrains Mono", "Courier New", monospace;
 }
