@@ -25,6 +25,8 @@ from app.api import predictions
 setup_logging()
 logger = get_logger(__name__)
 
+logger.info(f"ALLOWED_ORIGINS={settings.ALLOWED_ORIGINS}")
+logger.info(f"ALLOWED_ORIGINS_LIST={settings.allowed_origins_list}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -51,8 +53,6 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # than being hardcoded here. Never leave this as "*" (allow everything)
 # in a real production deployment -- that defeats the purpose of CORS
 # entirely.
-print("ALLOWED_ORIGINS =", settings.ALLOWED_ORIGINS)
-print("ALLOWED_ORIGINS_LIST =", settings.allowed_origins_list)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins_list,
