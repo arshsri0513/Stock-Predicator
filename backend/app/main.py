@@ -32,6 +32,12 @@ logger.info(f"ALLOWED_ORIGINS_LIST={settings.allowed_origins_list}")
 async def lifespan(app: FastAPI):
     logger.info("Auto-creating database tables if they do not exist...")
     Base.metadata.create_all(bind=engine)
+
+    logger.info("===== REGISTERED ROUTES =====")
+    for route in app.routes:
+        logger.info(f"{route.path} -> {route.methods}")
+    logger.info("=============================")
+
     yield
 
 
