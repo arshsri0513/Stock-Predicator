@@ -1,10 +1,43 @@
-# Stock Predictor — Phase 2 Skeleton
+# 📈 StockPredict AI
 
-This is the project skeleton from Phase 2 of the build plan. It's intentionally
-minimal: just enough wiring to prove the frontend and backend boot and the
-folder structure matches our Phase 1 architecture.
+**AI-powered stock market prediction and analytics platform.**
 
-## Backend setup
+Predict future stock prices using Machine Learning and Deep Learning models, analyze live market data, technical indicators, and financial news sentiment — all from one intelligent dashboard.
+
+🔗 **Live Demo:** [stock-predicator.vercel.app](https://stock-predicator.vercel.app/)
+
+![StockPredict AI screenshot](docs/screenshot.png)
+<!-- Replace the above with an actual screenshot of your dashboard. Save it to /docs/screenshot.png -->
+
+---
+
+## ✨ Features
+
+- **📈 Real-Time Market Data** — Live stock prices and historical trends
+- **🤖 AI Stock Prediction** — Forecasts powered by Machine Learning and Deep Learning models
+- **📊 Technical Indicators** — RSI, EMA, SMA, MACD, Bollinger Bands, and more
+- **📰 News Sentiment Analysis** — NLP-based analysis of financial news to gauge market sentiment
+- **Dashboards for** Markets, Predictions, Watchlist, Portfolio, Alerts, and News
+
+## 🧠 Machine Learning Models
+
+| Category | Model | Purpose |
+|---|---|---|
+| Traditional ML | **Random Forest** | Ensemble learning across multiple decision trees for accurate, low-overfit predictions |
+| Deep Learning | **LSTM** | Captures long-term dependencies in stock price sequences for time-series forecasting |
+| Technical Analysis | **RSI / EMA / SMA / MACD / Bollinger Bands** | Classic indicators for trend and momentum analysis |
+| NLP | **News Sentiment** | Analyzes financial news to estimate market sentiment |
+
+## 🛠️ Tech Stack
+
+**Frontend:** Next.js (TypeScript, App Router, Tailwind CSS)
+**Backend:** FastAPI (Python), Pydantic
+**Deployment:** Vercel (frontend), Render (backend) — see `render.yaml`
+**Containerization:** Docker Compose
+
+## 🚀 Getting Started
+
+### Backend
 
 ```bash
 cd backend
@@ -14,21 +47,9 @@ pip install fastapi "uvicorn[standard]" pydantic pydantic-settings python-dotenv
 uvicorn app.main:app --reload --port 8000
 ```
 
-Visit http://localhost:8000/health and http://localhost:8000/docs
+Visit `http://localhost:8000/health` and `http://localhost:8000/docs`
 
-## Frontend setup
-
-The `frontend/` folder here has hand-written equivalents of what
-`npx create-next-app@latest` generates. For a real project, prefer running
-the real scaffolding command instead of copying this folder verbatim:
-
-```bash
-npx create-next-app@latest frontend
-# Choose: TypeScript=Yes, ESLint=Yes, Tailwind=Yes, src/=Yes, App Router=Yes
-```
-
-Then copy `src/app/page.tsx`, `src/app/layout.tsx`, and `src/lib/api.ts`
-from this skeleton into the generated project, and:
+### Frontend
 
 ```bash
 cd frontend
@@ -36,13 +57,19 @@ npm install
 npm run dev
 ```
 
-Visit http://localhost:3000
+Visit `http://localhost:3000`
 
-## What's NOT here yet
+## 📌 Roadmap
 
-- Database models (Phase 9)
-- Real API endpoints beyond /health (Phase 8)
-- Authentication (Phase 12)
-- Docker Compose for local Postgres/Redis (introduced when needed)
+- [ ] Database models
+- [ ] Full API endpoints beyond `/health`
+- [ ] Authentication
+- [ ] Dockerized local Postgres/Redis for development
 
-Each will be added in its corresponding phase of the build plan.
+## 👤 Author
+
+**Arsh Srivastava**
+
+---
+
+⭐ If you find this project interesting, consider giving it a star!
